@@ -1,0 +1,174 @@
+/* =============================================
+   Estilos del gimnasio (CSS básico, sin frameworks)
+   ============================================= */
+
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #f2f2f2;
+    color: #222;
+}
+
+header {
+    background: #222;
+    color: white;
+    padding: 16px;
+}
+
+header h1 {
+    margin: 0;
+    font-size: 24px;
+}
+
+header a {
+    color: #ccc;
+    text-decoration: none;
+}
+
+main {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 16px;
+}
+
+section {
+    background: white;
+    padding: 16px;
+    margin-bottom: 16px;
+    border-radius: 6px;
+}
+
+h2 {
+    margin-top: 0;
+    font-size: 18px;
+}
+
+/* ---------- Mensajes ---------- */
+
+.mensaje {
+    padding: 12px;
+    margin-bottom: 16px;
+    border-radius: 6px;
+    font-weight: bold;
+}
+
+.mensaje.ok {
+    background: #d4edda;
+    color: #155724;
+}
+
+.mensaje.error {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+/* ---------- Tablas ---------- */
+
+.tabla-scroll {
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th, td {
+    text-align: left;
+    padding: 8px;
+    border-bottom: 1px solid #ddd;
+}
+
+.acciones {
+    white-space: nowrap;
+}
+
+/* ---------- Estados del socio (regla 2) ---------- */
+
+.estado {
+    padding: 3px 8px;
+    border-radius: 10px;
+    font-size: 13px;
+    color: white;
+}
+
+.activo {
+    background: #28a745;
+}
+
+.por-vencer {
+    background: #fd7e14;
+}
+
+.vencido {
+    background: #dc3545;
+}
+
+/* ---------- Progreso (regla 6) ---------- */
+
+.va-bien {
+    color: #28a745;
+}
+
+.va-mal {
+    color: #dc3545;
+}
+
+/* ---------- Formularios y botones ---------- */
+
+.campos {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 14px;
+    margin-bottom: 8px;
+}
+
+input, select {
+    padding: 6px;
+    font-size: 14px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+button, .boton {
+    padding: 6px 12px;
+    font-size: 14px;
+    background: #222;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+}
+
+button:hover, .boton:hover {
+    background: #444;
+}
+
+/* ---------- Ficha: dos columnas (una en móvil) ---------- */
+
+.columnas {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.columnas section {
+    margin-bottom: 0;
+}
+
+@media (max-width: 600px) {
+    .columnas {
+        grid-template-columns: 1fr;
+    }
+}

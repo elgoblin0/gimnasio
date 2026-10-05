@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gimnasio - Ficha del socio</title>
+    <link rel="stylesheet" href="estilos.css">
+</head>
+<body>
+    <header>
+        <a href="index.html">&larr; Volver</a>
+        <h1><span id="nombre"></span> <span id="estado"></span></h1>
+    </header>
+
+    <main>
+        <!-- Aquí aparecen los mensajes de éxito o error -->
+        <div id="mensaje"></div>
+
+        <div class="columnas">
+            <section>
+                <h2>Datos</h2>
+                <p>DNI: <span id="dni"></span></p>
+                <p>Teléfono: <span id="telefono"></span></p>
+                <p>Objetivo: <span id="objetivo"></span></p>
+                <p>Nivel: <span id="nivel"></span></p>
+            </section>
+
+            <section>
+                <h2>Plan</h2>
+                <p><span id="plan"></span></p>
+                <p>Vence: <span id="vencimiento"></span></p>
+                <p>Entradas últimos 7 días: <span id="entradas"></span></p>
+                <label>Renovar con
+                    <select id="plan-renovar"></select>
+                </label>
+                <button onclick="renovar()">Renovar</button>
+            </section>
+
+            <section>
+                <h2>Salud</h2>
+                <p>Peso: <span id="peso"></span> kg</p>
+                <p>Altura: <span id="altura"></span> m</p>
+                <p>IMC: <span id="imc"></span></p>
+            </section>
+
+            <section>
+                <h2>Rutina</h2>
+                <p><strong id="rutina-nombre"></strong></p>
+                <p id="rutina-descripcion"></p>
+            </section>
+        </div>
+
+        <section>
+            <h2>Progreso: <span id="progreso"></span></h2>
+            <div class="columnas">
+                <table>
+                    <thead>
+                        <tr><th>Fecha</th><th>Peso (kg)</th></tr>
+                    </thead>
+                    <tbody id="tabla-pesos"></tbody>
+                </table>
+                <div>
+                    <label>Nuevo peso (kg)
+                        <input id="nuevo-peso" type="number" step="0.1">
+                    </label>
+                    <button onclick="registrarPeso()">Registrar peso</button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="app.js"></script>
+    <script>
+        // Al abrir la página: cargar la ficha del socio de la URL (?id=...)
+        cargarFicha();
+    </script>
+</body>
+</html>

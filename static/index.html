@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gimnasio - Socios</title>
+    <link rel="stylesheet" href="estilos.css">
+</head>
+<body>
+    <header>
+        <h1>GIMNASIO</h1>
+    </header>
+
+    <main>
+        <!-- Aquí aparecen los mensajes de éxito o error -->
+        <div id="mensaje"></div>
+
+        <section>
+            <h2>Socios</h2>
+            <div class="tabla-scroll">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nombre</th>
+                            <th>DNI</th>
+                            <th>Plan</th>
+                            <th>Vence</th>
+                            <th>Estado</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <!-- Las filas las rellena cargarSocios() en app.js -->
+                    <tbody id="tabla-socios"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section>
+            <h2>Nuevo socio</h2>
+            <form id="form-alta" onsubmit="darDeAlta(event)">
+                <div class="campos">
+                    <label>Nombre <input id="nombre" required></label>
+                    <label>DNI <input id="dni" required></label>
+                    <label>Teléfono <input id="telefono"></label>
+                    <label>Peso (kg) <input id="peso" type="number" step="0.1" required></label>
+                    <label>Altura (m) <input id="altura" type="number" step="0.01" placeholder="1.75" required></label>
+                    <label>Objetivo
+                        <select id="objetivo">
+                            <option value="bajar peso">Bajar peso</option>
+                            <option value="ganar musculo">Ganar músculo</option>
+                            <option value="mantenerse">Mantenerse</option>
+                        </select>
+                    </label>
+                    <label>Nivel
+                        <select id="nivel">
+                            <option value="principiante">Principiante</option>
+                            <option value="intermedio">Intermedio</option>
+                            <option value="avanzado">Avanzado</option>
+                        </select>
+                    </label>
+                    <label>Plan
+                        <!-- Las opciones las rellena cargarPlanes() en app.js -->
+                        <select id="plan"></select>
+                    </label>
+                </div>
+                <button type="submit">Dar de alta</button>
+            </form>
+        </section>
+    </main>
+
+    <script src="app.js"></script>
+    <script>
+        // Al abrir la página: cargar la tabla y los planes del desplegable
+        cargarSocios();
+        cargarPlanes("plan", null);
+    </script>
+</body>
+</html>
