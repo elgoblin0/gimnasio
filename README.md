@@ -1,6 +1,6 @@
 # Sistema de gimnasio
 
-Proyecto de la facultad: gestión de socios de un gimnasio.
+Proyecto de la facultad: gestión de socios de un gimnasio. Permite dar de alta socios, registrar sus entradas (check-in), renovar planes y seguir su peso, IMC y rutina.
 
 **Stack:** XAMPP (MySQL/MariaDB) + Python Flask (backend) + JavaScript (frontend).
 
@@ -9,35 +9,59 @@ Proyecto de la facultad: gestión de socios de un gimnasio.
 1. Siempre lo más sencillo posible, para poder explicar el código al profesor.
 2. Antes de escribir código, todo el grupo tiene que estar 100% de acuerdo.
 
+## Qué hace falta instalar
+
+- [XAMPP](https://www.apachefriends.org/es/index.html): trae MySQL y phpMyAdmin.
+- [Python 3](https://www.python.org/downloads/). En Windows, marcar **"Add Python to PATH"** al instalarlo.
+- [Git](https://git-scm.com/downloads).
+
 ## Cómo ponerlo en marcha
 
-1. Instalar **XAMPP** y arrancar **MySQL** (y **Apache** para usar phpMyAdmin).
-2. Abrir `http://localhost/phpmyadmin`, pestaña **Importar**, y subir `base_datos.sql`.
-   (Ojo: borra y vuelve a crear la base de datos `gimnasio` con los datos de ejemplo.)
-3. Instalar las librerías de Python:
+1. Descargar el proyecto (solo la primera vez):
+   ```
+   git clone https://github.com/elgoblin0/gimnasio.git
+   cd gimnasio
+   ```
+2. Abrir el panel de XAMPP y arrancar **MySQL** y **Apache** (Apache solo hace falta para phpMyAdmin).
+3. Abrir `http://localhost/phpmyadmin`, ir a la pestaña **Importar** y subir `base_datos.sql`.
+   (Ojo: borra la base de datos `gimnasio` y la vuelve a crear con los datos de ejemplo.)
+4. Instalar las librerías de Python:
    ```
    pip3 install -r requirements.txt
    ```
-4. Arrancar el servidor:
+5. Arrancar el servidor:
    ```
    python3 app.py
    ```
-5. Abrir `http://localhost:5001` en el navegador.
+6. Abrir `http://localhost:5001` en el navegador.
 
 > En Windows puede que los comandos sean `pip` y `python` en vez de `pip3` y `python3`.
+
+Para parar el servidor: `Ctrl + C` en la terminal.
 
 ## Archivos
 
 ```
 gimnasio/
-├── base_datos.sql   ← tablas y datos de ejemplo
-├── app.py           ← backend Flask: reglas + API
+├── base_datos.sql     ← tablas y datos de ejemplo
+├── app.py             ← backend Flask: reglas + API
+├── requirements.txt   ← librerías de Python
 └── static/
-    ├── index.html   ← lista de socios, check-in y alta
-    ├── socio.html   ← ficha: IMC, rutina, progreso, renovar
-    ├── app.js       ← llamadas a la API (fetch)
+    ├── index.html     ← lista de socios, check-in y alta
+    ├── socio.html     ← ficha: IMC, rutina, progreso, renovar
+    ├── app.js         ← llamadas a la API (fetch)
     └── estilos.css
 ```
+
+## Base de datos
+
+| Tabla | Qué guarda |
+|---|---|
+| `planes` | Nombre, duración en días y cuántos días por semana se puede entrar (7 = libre). |
+| `rutinas` | Una rutina por cada combinación de objetivo + nivel. |
+| `socios` | Datos del socio, su plan y la fecha de vencimiento. |
+| `asistencias` | Una fila por cada entrada al gimnasio. |
+| `registros_peso` | Historial de peso para ver el progreso. |
 
 ## Reglas del gimnasio (la lógica que se evalúa)
 
@@ -52,6 +76,39 @@ Todas están en `app.py`.
 | 5 | Rutina asignada según objetivo + nivel. |
 | 6 | Progreso: primer peso vs último según el objetivo (mantenerse = 2 kg o menos de diferencia). |
 
+## Cómo probar las reglas con los datos de ejemplo
+
+Las fechas de ejemplo se calculan a partir del día en que se importa el `.sql`, así que siempre hay un socio en cada estado.
+
+| Socio | Qué se puede probar |
+|---|---|
+| Ana Lopez | Activa. El check-in funciona. Va bien bajando de peso (72 → 68 kg). |
+| Carlos Ruiz | Por vencer (5 días). Plan de 3 días/semana y ya entró 2 veces: el primer check-in funciona, el segundo dice "Ya entró hoy". |
+| Maria Gomez | Vencida. El check-in se rechaza. Al renovar, el plan cuenta desde hoy. |
+| Luis Fernandez | Activo (plan anual). Quiere bajar peso pero subió (88 → 90 kg): "No va bien". |
+
+Si los datos quedan desordenados de tanto probar, se vuelve a importar `base_datos.sql` y listo.
+
+## API (lo que llama `app.js`)
+
+| Método | Ruta | Qué hace |
+|---|---|---|
+| GET | `/api/planes` | Lista de planes |
+| GET | `/api/socios` | Lista de socios con su estado |
+| POST | `/api/socios` | Alta de socio |
+| GET | `/api/socios/<id>` | Ficha completa (IMC, rutina, progreso, historial) |
+| POST | `/api/socios/<id>/checkin` | Registrar una entrada |
+| POST | `/api/socios/<id>/renovar` | Renovar o cambiar de plan |
+| POST | `/api/socios/<id>/peso` | Registrar un peso nuevo |
+
+## Problemas frecuentes
+
+- **`Can't connect to MySQL server`**: MySQL no está arrancado en XAMPP.
+- **`Unknown database 'gimnasio'`**: falta importar `base_datos.sql` en phpMyAdmin.
+- **`Access denied for user 'root'`**: tu MySQL tiene contraseña. Ponla en `password=""` dentro de `conectar()` en `app.py`, pero **no la subas a GitHub**.
+- **`ModuleNotFoundError: No module named 'flask'`**: falta el paso 4 (`pip3 install -r requirements.txt`).
+- **`Address already in use`**: el servidor ya está abierto en otra terminal. Ciérralo con `Ctrl + C`.
+
 ## Comandos básicos de git
 
 ```
@@ -60,3 +117,5 @@ git add .                     # preparar mis cambios
 git commit -m "qué he hecho"  # guardarlos con un mensaje
 git push                      # subirlos a GitHub
 ```
+
+Si `git push` da error porque alguien subió cambios antes, haz `git pull` y vuelve a hacer `git push`.
