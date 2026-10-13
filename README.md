@@ -89,6 +89,14 @@ Las fechas de ejemplo se calculan a partir del día en que se importa el `.sql`,
 
 Si los datos quedan desordenados de tanto probar, se vuelve a importar `base_datos.sql` y listo.
 
+### Migraciones
+
+Si ya tenías la base creada y no querés perder los datos, en vez de reimportar `base_datos.sql` importá (en phpMyAdmin, pestaña **Importar**) el archivo de `migraciones/` que corresponda:
+
+| Archivo | Qué hace |
+|---|---|
+| `migraciones/001_dni_a_ci.sql` | Renombra la columna `socios.dni` a `ci` conservando los datos. Se puede repetir sin problema. |
+
 ## API (lo que llama `app.js`)
 
 | Método | Ruta | Qué hace |
