@@ -172,3 +172,13 @@ button:hover, .boton:hover {
         grid-template-columns: 1fr;
     }
 }
+
+
+/* Botón para eliminar socios */
+.boton-eliminar {
+    background: #dc3545;
+}
+
+.boton-eliminar:hover {
+    background: #b02a37;
+}

@@ -85,13 +85,14 @@ async function cargarSocios() {
         tabla.innerHTML +=
             "<tr>" +
             "<td>" + socio.nombre + "</td>" +
-            "<td>" + socio.dni + "</td>" +
+            "<td>" + socio.ci + "</td>" +
             "<td>" + socio.plan + "</td>" +
             "<td>" + formatearFecha(socio.fecha_vencimiento) + "</td>" +
             "<td>" + etiquetaEstado(socio.estado) + "</td>" +
             "<td class='acciones'>" +
             "<button onclick='hacerEntrada(" + socio.id + ")'>Entrada</button> " +
-            "<a class='boton' href='socio.html?id=" + socio.id + "'>Ver ficha</a>" +
+            "<a class='boton' href='socio.html?id=" + socio.id + "'>Ver ficha</a> " +
+            "<button class='boton-eliminar' onclick='eliminarSocio(" + socio.id + ")'>Eliminar</button>" +
             "</td>" +
             "</tr>";
     }
@@ -104,13 +105,34 @@ async function hacerEntrada(id) {
     cargarSocios();
 }
 
+// Eliminar un socio
+async function eliminarSocio(id) {
+    const confirmar = confirm(
+        "¿Estás seguro de que querés eliminar este socio? " +
+        "También se eliminarán sus asistencias y su historial de peso. " +
+        "Esta acción no se puede deshacer."
+    );
+
+    if (!confirmar) {
+        return;
+    }
+
+    const resultado = await llamarApi("/api/socios/" + id, "DELETE");
+    mostrarResultado(resultado);
+
+    if (resultado.ok) {
+        await cargarSocios();
+    }
+}
+
+
 // Alta de un socio nuevo
 async function darDeAlta(evento) {
     evento.preventDefault(); // evita que el formulario recargue la página
 
     const datos = {
         nombre: document.getElementById("nombre").value,
-        dni: document.getElementById("dni").value,
+        ci: document.getElementById("ci").value,
         telefono: document.getElementById("telefono").value,
         peso: document.getElementById("peso").value,
         altura: document.getElementById("altura").value,
@@ -150,7 +172,7 @@ async function cargarFicha() {
     // Cabecera y datos
     document.getElementById("nombre").textContent = socio.nombre;
     document.getElementById("estado").innerHTML = etiquetaEstado(socio.estado);
-    document.getElementById("dni").textContent = socio.dni;
+    document.getElementById("ci").textContent = socio.ci;
     document.getElementById("telefono").textContent = socio.telefono;
     document.getElementById("objetivo").textContent = socio.objetivo;
     document.getElementById("nivel").textContent = socio.nivel;

@@ -41,7 +41,7 @@ CREATE TABLE rutinas (
 CREATE TABLE socios (
     id INT AUTO_INCREMENT PRIMARY KEY,
     nombre VARCHAR(100) NOT NULL,
-    dni VARCHAR(20) NOT NULL UNIQUE,
+    ci VARCHAR(20) NOT NULL UNIQUE,
     telefono VARCHAR(20),
     peso DECIMAL(5,2) NOT NULL,
     altura DECIMAL(3,2) NOT NULL,
@@ -98,7 +98,7 @@ INSERT INTO rutinas (nombre, objetivo, nivel, descripcion) VALUES
 ('Activo pro',        'mantenerse',    'avanzado',     'Entrenamiento funcional + cardio moderado');
 
 -- Fechas relativas a hoy para que siempre haya socios en cada estado
-INSERT INTO socios (nombre, dni, telefono, peso, altura, objetivo, nivel, plan_id, fecha_vencimiento) VALUES
+INSERT INTO socios (nombre, ci, telefono, peso, altura, objetivo, nivel, plan_id, fecha_vencimiento) VALUES
 ('Ana Lopez',    '11111111A', '600111111', 68.00, 1.65, 'bajar peso',    'principiante', 1, DATE_ADD(CURDATE(), INTERVAL 20 DAY)), -- activo
 ('Carlos Ruiz',  '22222222B', '600222222', 75.50, 1.80, 'ganar musculo', 'intermedio',   2, DATE_ADD(CURDATE(), INTERVAL 5 DAY)),  -- por vencer
 ('Maria Gomez',  '33333333C', '600333333', 58.00, 1.60, 'mantenerse',    'avanzado',     3, DATE_SUB(CURDATE(), INTERVAL 3 DAY)),  -- vencido

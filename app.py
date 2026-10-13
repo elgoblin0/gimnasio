@@ -152,7 +152,7 @@ def listar_planes():
 @app.route("/api/socios")
 def listar_socios():
     socios = consultar(
-        "SELECT s.id, s.nombre, s.dni, p.nombre AS plan, s.fecha_vencimiento "
+        "SELECT s.id, s.nombre, s.ci, p.nombre AS plan, s.fecha_vencimiento "
         "FROM socios s JOIN planes p ON s.plan_id = p.id "
         "ORDER BY s.nombre"
     )
@@ -168,7 +168,7 @@ def crear_socio():
     datos = request.get_json()
 
     # Comprobar que no falte ningún campo obligatorio
-    obligatorios = ["nombre", "dni", "peso", "altura", "objetivo", "nivel", "plan_id"]
+    obligatorios = ["nombre", "ci", "peso", "altura", "objetivo", "nivel", "plan_id"]
     for campo in obligatorios:
         if not datos.get(campo):
             return error("Falta el campo: " + campo)
@@ -180,8 +180,8 @@ def crear_socio():
     if altura <= 0 or altura > 2.5:
         return error("La altura debe estar en metros (ej: 1.75)")
 
-    if consultar_uno("SELECT id FROM socios WHERE dni = %s", (datos["dni"],)):
-        return error("Ya existe un socio con ese DNI")
+    if consultar_uno("SELECT id FROM socios WHERE ci = %s", (datos["ci"],)):
+        return error("Ya existe un socio con ese CI")
 
     plan = consultar_uno("SELECT * FROM planes WHERE id = %s", (datos["plan_id"],))
     if plan is None:
@@ -191,9 +191,9 @@ def crear_socio():
     fecha_vencimiento = calcular_vencimiento(None, plan["duracion_dias"])
 
     socio_id = ejecutar(
-        "INSERT INTO socios (nombre, dni, telefono, peso, altura, objetivo, nivel, plan_id, fecha_vencimiento) "
+        "INSERT INTO socios (nombre, ci, telefono, peso, altura, objetivo, nivel, plan_id, fecha_vencimiento) "
         "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
-        (datos["nombre"], datos["dni"], datos.get("telefono", ""), peso, altura,
+        (datos["nombre"], datos["ci"], datos.get("telefono", ""), peso, altura,
          datos["objetivo"], datos["nivel"], plan["id"], fecha_vencimiento),
     )
 
@@ -206,7 +206,52 @@ def crear_socio():
     return jsonify({"mensaje": "Socio dado de alta", "id": socio_id})
 
 
-# 4. Ficha completa de un socio
+# 4. Eliminar un socio
+@app.route("/api/socios/<int:socio_id>", methods=["DELETE"])
+def eliminar_socio(socio_id):
+    conexion = conectar()
+    cursor = conexion.cursor()
+
+    try:
+        # Comprobar si existe el socio
+        cursor.execute(
+            "SELECT id FROM socios WHERE id = %s",
+            (socio_id,)
+        )
+
+        if cursor.fetchone() is None:
+            return error("El socio no existe", 404)
+
+        # Eliminar primero los registros relacionados
+        cursor.execute(
+            "DELETE FROM asistencias WHERE socio_id = %s",
+            (socio_id,)
+        )
+        cursor.execute(
+            "DELETE FROM registros_peso WHERE socio_id = %s",
+            (socio_id,)
+        )
+
+        # Eliminar el socio
+        cursor.execute(
+            "DELETE FROM socios WHERE id = %s",
+            (socio_id,)
+        )
+
+        conexion.commit()
+        return jsonify({"mensaje": "Socio eliminado correctamente"})
+
+    except Exception as e:
+        conexion.rollback()
+        print("Error al eliminar socio:", e)
+        return error("No se pudo eliminar el socio", 500)
+
+    finally:
+        cursor.close()
+        conexion.close()
+
+
+# 5. Ficha completa de un socio
 @app.route("/api/socios/<int:socio_id>")
 def ver_socio(socio_id):
     socio = consultar_uno(
@@ -251,7 +296,7 @@ def ver_socio(socio_id):
     return jsonify({
         "id": socio["id"],
         "nombre": socio["nombre"],
-        "dni": socio["dni"],
+        "ci": socio["ci"],
         "telefono": socio["telefono"],
         "peso": peso,
         "altura": altura,
@@ -271,7 +316,7 @@ def ver_socio(socio_id):
     })
 
 
-# 5. Check-in (REGLA 3)
+# 6. Check-in (REGLA 3)
 @app.route("/api/socios/<int:socio_id>/checkin", methods=["POST"])
 def hacer_checkin(socio_id):
     socio = consultar_uno(
@@ -304,7 +349,7 @@ def hacer_checkin(socio_id):
     return jsonify({"mensaje": "Entrada registrada"})
 
 
-# 6. Renovar plan (se puede cambiar de plan)
+# 7. Renovar plan (se puede cambiar de plan)
 @app.route("/api/socios/<int:socio_id>/renovar", methods=["POST"])
 def renovar(socio_id):
     datos = request.get_json()
@@ -327,7 +372,7 @@ def renovar(socio_id):
     return jsonify({"mensaje": "Plan renovado hasta " + str(nueva_fecha)})
 
 
-# 7. Registrar un nuevo peso
+# 8. Registrar un nuevo peso
 @app.route("/api/socios/<int:socio_id>/peso", methods=["POST"])
 def registrar_peso(socio_id):
     datos = request.get_json()
