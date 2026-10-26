@@ -105,7 +105,7 @@ def calcular_estado(fecha_vencimiento):
 
 # REGLA 4: IMC = peso / altura² y su categoría
 def calcular_imc(peso, altura):
-    imc = round(peso / (altura * altura), 1)
+    imc = peso / (altura * altura)
     if imc < 18.5:
         categoria = "Bajo peso"
     elif imc < 25:
@@ -114,7 +114,7 @@ def calcular_imc(peso, altura):
         categoria = "Sobrepeso"
     else:
         categoria = "Obesidad"
-    return imc, categoria
+    return round(imc, 2), categoria  # se redondea al final para no cambiar la categoría
 
 
 # REGLA 6: comparar el primer peso con el último según el objetivo
