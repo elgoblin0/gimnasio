@@ -91,7 +91,7 @@ Si los datos quedan desordenados de tanto probar, se vuelve a importar `base_dat
 
 ### Migraciones
 
-Si ya tenías la base creada y no querés perder los datos, en vez de reimportar `base_datos.sql` importá (en phpMyAdmin, pestaña **Importar**) el archivo de `migraciones/` que corresponda:
+Si ya tenías la base creada y no quieres perder los datos, en vez de reimportar `base_datos.sql` importa (en phpMyAdmin, pestaña **Importar**) el archivo de `migraciones/` que corresponda:
 
 | Archivo | Qué hace |
 |---|---|
@@ -105,6 +105,8 @@ Si ya tenías la base creada y no querés perder los datos, en vez de reimportar
 | GET | `/api/socios` | Lista de socios con su estado |
 | POST | `/api/socios` | Alta de socio |
 | GET | `/api/socios/<id>` | Ficha completa (IMC, rutina, progreso, historial) |
+| PUT | `/api/socios/<id>` | Editar nombre, CI, teléfono, altura, objetivo y nivel |
+| DELETE | `/api/socios/<id>` | Eliminar socio |
 | POST | `/api/socios/<id>/checkin` | Registrar una entrada |
 | POST | `/api/socios/<id>/renovar` | Renovar o cambiar de plan |
 | POST | `/api/socios/<id>/peso` | Registrar un peso nuevo |

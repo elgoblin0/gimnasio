@@ -25,7 +25,7 @@ def conectar():
         user="root",
         password="",
         database="gimnasio",
-        use_pure=True,  # versión en Python puro del conector (la versión en C fallaba en este Mac)
+        use_pure=True,  # conector en Python puro (más fácil de instalar)
     )
 
 
@@ -61,6 +61,22 @@ def ejecutar(sql, parametros=()):
 def error(mensaje, codigo=400):
     # Respuesta de error que muestra el frontend
     return jsonify({"error": mensaje}), codigo
+
+
+def socio_existe(socio_id):
+    return consultar_uno("SELECT id FROM socios WHERE id = %s", (socio_id,)) is not None
+
+
+# Revisa los campos obligatorios y la altura (se usa al crear y al editar).
+# Devuelve el mensaje de error, o None si todo está bien.
+def validar_datos_socio(datos, obligatorios):
+    for campo in obligatorios:
+        if not datos.get(campo):
+            return "Falta el campo: " + campo
+    altura = float(datos["altura"])
+    if altura <= 0 or altura > 2.5:
+        return "La altura debe estar en metros (ej: 1.75)"
+    return None
 
 
 # ---------------------------------------------
@@ -167,18 +183,14 @@ def listar_socios():
 def crear_socio():
     datos = request.get_json()
 
-    # Comprobar que no falte ningún campo obligatorio
-    obligatorios = ["nombre", "ci", "peso", "altura", "objetivo", "nivel", "plan_id"]
-    for campo in obligatorios:
-        if not datos.get(campo):
-            return error("Falta el campo: " + campo)
+    mensaje = validar_datos_socio(datos, ["nombre", "ci", "peso", "altura", "objetivo", "nivel", "plan_id"])
+    if mensaje:
+        return error(mensaje)
 
     peso = float(datos["peso"])
     altura = float(datos["altura"])
     if peso <= 0:
         return error("El peso debe ser mayor que 0")
-    if altura <= 0 or altura > 2.5:
-        return error("La altura debe estar en metros (ej: 1.75)")
 
     if consultar_uno("SELECT id FROM socios WHERE ci = %s", (datos["ci"],)):
         return error("Ya existe un socio con ese CI")
@@ -209,49 +221,43 @@ def crear_socio():
 # 4. Eliminar un socio
 @app.route("/api/socios/<int:socio_id>", methods=["DELETE"])
 def eliminar_socio(socio_id):
-    conexion = conectar()
-    cursor = conexion.cursor()
+    if not socio_existe(socio_id):
+        return error("El socio no existe", 404)
 
-    try:
-        # Comprobar si existe el socio
-        cursor.execute(
-            "SELECT id FROM socios WHERE id = %s",
-            (socio_id,)
-        )
-
-        if cursor.fetchone() is None:
-            return error("El socio no existe", 404)
-
-        # Eliminar primero los registros relacionados
-        cursor.execute(
-            "DELETE FROM asistencias WHERE socio_id = %s",
-            (socio_id,)
-        )
-        cursor.execute(
-            "DELETE FROM registros_peso WHERE socio_id = %s",
-            (socio_id,)
-        )
-
-        # Eliminar el socio
-        cursor.execute(
-            "DELETE FROM socios WHERE id = %s",
-            (socio_id,)
-        )
-
-        conexion.commit()
-        return jsonify({"mensaje": "Socio eliminado correctamente"})
-
-    except Exception as e:
-        conexion.rollback()
-        print("Error al eliminar socio:", e)
-        return error("No se pudo eliminar el socio", 500)
-
-    finally:
-        cursor.close()
-        conexion.close()
+    # Primero las tablas que dependen del socio (por las claves foráneas)
+    ejecutar("DELETE FROM asistencias WHERE socio_id = %s", (socio_id,))
+    ejecutar("DELETE FROM registros_peso WHERE socio_id = %s", (socio_id,))
+    ejecutar("DELETE FROM socios WHERE id = %s", (socio_id,))
+    return jsonify({"mensaje": "Socio eliminado correctamente"})
 
 
-# 5. Ficha completa de un socio
+# 5. Editar los datos de un socio (el peso y el plan se cambian por sus propias rutas)
+@app.route("/api/socios/<int:socio_id>", methods=["PUT"])
+def editar_socio(socio_id):
+    datos = request.get_json()
+
+    if not socio_existe(socio_id):
+        return error("El socio no existe", 404)
+
+    mensaje = validar_datos_socio(datos, ["nombre", "ci", "altura", "objetivo", "nivel"])
+    if mensaje:
+        return error(mensaje)
+    altura = float(datos["altura"])
+
+    # El CI no puede ser el de otro socio (el suyo propio sí)
+    if consultar_uno("SELECT id FROM socios WHERE ci = %s AND id <> %s", (datos["ci"], socio_id)):
+        return error("Ya existe otro socio con ese CI")
+
+    ejecutar(
+        "UPDATE socios SET nombre = %s, ci = %s, telefono = %s, altura = %s, objetivo = %s, nivel = %s "
+        "WHERE id = %s",
+        (datos["nombre"], datos["ci"], datos.get("telefono", ""), altura,
+         datos["objetivo"], datos["nivel"], socio_id),
+    )
+    return jsonify({"mensaje": "Datos actualizados"})
+
+
+# 6. Ficha completa de un socio
 @app.route("/api/socios/<int:socio_id>")
 def ver_socio(socio_id):
     socio = consultar_uno(
@@ -316,7 +322,7 @@ def ver_socio(socio_id):
     })
 
 
-# 6. Check-in (REGLA 3)
+# 7. Check-in (REGLA 3)
 @app.route("/api/socios/<int:socio_id>/checkin", methods=["POST"])
 def hacer_checkin(socio_id):
     socio = consultar_uno(
@@ -349,7 +355,7 @@ def hacer_checkin(socio_id):
     return jsonify({"mensaje": "Entrada registrada"})
 
 
-# 7. Renovar plan (se puede cambiar de plan)
+# 8. Renovar plan (se puede cambiar de plan)
 @app.route("/api/socios/<int:socio_id>/renovar", methods=["POST"])
 def renovar(socio_id):
     datos = request.get_json()
@@ -372,12 +378,12 @@ def renovar(socio_id):
     return jsonify({"mensaje": "Plan renovado hasta " + str(nueva_fecha)})
 
 
-# 8. Registrar un nuevo peso
+# 9. Registrar un nuevo peso
 @app.route("/api/socios/<int:socio_id>/peso", methods=["POST"])
 def registrar_peso(socio_id):
     datos = request.get_json()
 
-    if consultar_uno("SELECT id FROM socios WHERE id = %s", (socio_id,)) is None:
+    if not socio_existe(socio_id):
         return error("El socio no existe", 404)
 
     if not datos.get("peso") or float(datos["peso"]) <= 0:
@@ -392,6 +398,5 @@ def registrar_peso(socio_id):
     return jsonify({"mensaje": "Peso registrado"})
 
 
-# Puerto 5001 porque en Mac el 5000 lo usa AirPlay
 if __name__ == "__main__":
     app.run(debug=True, port=5001)
