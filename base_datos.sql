@@ -103,10 +103,8 @@ INSERT INTO socios (nombre, ci, telefono, peso, altura, objetivo, nivel, plan_id
 ('Carlos Ruiz',  '22222222B', '600222222', 75.50, 1.80, 'ganar musculo', 'intermedio',   2, DATE_ADD(CURDATE(), INTERVAL 5 DAY)),  -- por vencer
 ('Maria Gomez',  '33333333C', '600333333', 58.00, 1.60, 'mantenerse',    'avanzado',     3, DATE_SUB(CURDATE(), INTERVAL 3 DAY)),  -- vencido
 ('Luis Fernandez','44444444D','600444444', 90.00, 1.75, 'bajar peso',    'intermedio',   4, DATE_ADD(CURDATE(), INTERVAL 200 DAY)), -- activo
-('Sofia Martinez', '55555555E', '600555555', 61.00, 1.68, 'ganar musculo', 'avanzado',     3, DATE_ADD(CURDATE(), INTERVAL 60 DAY)),  -- activo
 ('Diego Pereira',  '66666666F', '600666666', 81.00, 1.78, 'mantenerse',    'principiante', 2, DATE_ADD(CURDATE(), INTERVAL 15 DAY)),  -- activo
 ('Lucia Rodriguez','77777777G', '600777777', 91.00, 1.70, 'bajar peso',    'intermedio',   1, DATE_ADD(CURDATE(), INTERVAL 2 DAY)),   -- por vencer
-('Martin Suarez',  '88888888H', '600888888', 70.00, 1.80, 'ganar musculo', 'principiante', 4, DATE_ADD(CURDATE(), INTERVAL 300 DAY)), -- activo
 ('Valentina Diaz', '99999999I', '600999999', 52.00, 1.72, 'mantenerse',    'intermedio',   1, DATE_SUB(CURDATE(), INTERVAL 10 DAY)),  -- vencido
 ('Javier Gomez',   '10101010J', '601010101', 84.00, 1.82, 'bajar peso',    'avanzado',     2, DATE_ADD(CURDATE(), INTERVAL 25 DAY));  -- activo
 
@@ -119,19 +117,15 @@ INSERT INTO registros_peso (socio_id, fecha, peso) VALUES
 (3, CURDATE(), 58.00),
 (4, DATE_SUB(CURDATE(), INTERVAL 30 DAY), 88.00),
 (4, CURDATE(), 90.00),
-(5, DATE_SUB(CURDATE(), INTERVAL 60 DAY), 58.00),
-(5, DATE_SUB(CURDATE(), INTERVAL 30 DAY), 59.50),
-(5, CURDATE(), 61.00),
-(6, DATE_SUB(CURDATE(), INTERVAL 30 DAY), 80.00),
-(6, CURDATE(), 81.00),
-(7, DATE_SUB(CURDATE(), INTERVAL 45 DAY), 95.00),
-(7, DATE_SUB(CURDATE(), INTERVAL 20 DAY), 93.00),
-(7, CURDATE(), 91.00),
-(8, CURDATE(), 70.00),
-(9, DATE_SUB(CURDATE(), INTERVAL 40 DAY), 48.00),
-(9, CURDATE(), 52.00),
-(10, DATE_SUB(CURDATE(), INTERVAL 30 DAY), 86.00),
-(10, CURDATE(), 84.00);
+(5, DATE_SUB(CURDATE(), INTERVAL 30 DAY), 80.00),
+(5, CURDATE(), 81.00),
+(6, DATE_SUB(CURDATE(), INTERVAL 45 DAY), 95.00),
+(6, DATE_SUB(CURDATE(), INTERVAL 20 DAY), 93.00),
+(6, CURDATE(), 91.00),
+(7, DATE_SUB(CURDATE(), INTERVAL 40 DAY), 48.00),
+(7, CURDATE(), 52.00),
+(8, DATE_SUB(CURDATE(), INTERVAL 30 DAY), 86.00),
+(8, CURDATE(), 84.00);
 
 -- Carlos (plan 3 dias) ya entro 2 veces esta semana para poder probar el limite
 INSERT INTO asistencias (socio_id, fecha_hora) VALUES
@@ -139,12 +133,10 @@ INSERT INTO asistencias (socio_id, fecha_hora) VALUES
 (2, DATE_SUB(NOW(), INTERVAL 1 DAY)),
 (2, DATE_SUB(NOW(), INTERVAL 2 DAY)),
 (1, DATE_SUB(NOW(), INTERVAL 10 DAY)),
-(5, DATE_SUB(NOW(), INTERVAL 1 DAY)),
-(5, DATE_SUB(NOW(), INTERVAL 3 DAY)),
-(6, DATE_SUB(NOW(), INTERVAL 2 DAY)),
-(7, DATE_SUB(NOW(), INTERVAL 4 DAY)),
-(9, DATE_SUB(NOW(), INTERVAL 15 DAY)),
+(5, DATE_SUB(NOW(), INTERVAL 2 DAY)),
+(6, DATE_SUB(NOW(), INTERVAL 4 DAY)),
+(7, DATE_SUB(NOW(), INTERVAL 15 DAY)),
 -- Javier (plan 3 dias) ya uso sus 3 dias de los ultimos 7: el check-in se rechaza
-(10, DATE_SUB(NOW(), INTERVAL 1 DAY)),
-(10, DATE_SUB(NOW(), INTERVAL 3 DAY)),
-(10, DATE_SUB(NOW(), INTERVAL 5 DAY));
+(8, DATE_SUB(NOW(), INTERVAL 1 DAY)),
+(8, DATE_SUB(NOW(), INTERVAL 3 DAY)),
+(8, DATE_SUB(NOW(), INTERVAL 5 DAY));
