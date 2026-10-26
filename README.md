@@ -86,6 +86,12 @@ Las fechas de ejemplo se calculan a partir del día en que se importa el `.sql`,
 | Carlos Ruiz | Por vencer (5 días). Plan de 3 días/semana y ya entró 2 veces: el primer check-in funciona, el segundo dice "Ya entró hoy". |
 | Maria Gomez | Vencida. El check-in se rechaza. Al renovar, el plan cuenta desde hoy. |
 | Luis Fernandez | Activo (plan anual). Quiere bajar peso pero subió (88 → 90 kg): "No va bien". |
+| Sofia Martinez | Activa. Quiere ganar músculo y subió (58 → 61 kg): "Va bien". |
+| Diego Pereira | Activo. Quiere mantenerse y se movió 1 kg (80 → 81): "Va bien". IMC en Sobrepeso. |
+| Lucia Rodriguez | Por vencer (2 días). Bajó de 95 a 91 kg: "Va bien". IMC en Obesidad. |
+| Martin Suarez | Activo. Tiene un solo peso registrado: el progreso dice "Faltan datos". |
+| Valentina Diaz | Vencida. Quiere mantenerse pero subió 4 kg (48 → 52): "No va bien". IMC en Bajo peso. |
+| Javier Gomez | Plan de 3 días/semana y ya entró 3 veces en los últimos 7 días: el check-in dice "Ya usó sus 3 días de los últimos 7". |
 
 Si los datos quedan desordenados de tanto probar, se vuelve a importar `base_datos.sql` y listo.
 
