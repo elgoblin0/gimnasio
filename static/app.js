@@ -82,19 +82,19 @@ async function cargarSocios() {
     const tabla = document.getElementById("tabla-socios");
     tabla.innerHTML = "";
     for (const socio of resultado.datos) {
-        tabla.innerHTML +=
-            "<tr>" +
-            "<td>" + socio.nombre + "</td>" +
-            "<td>" + socio.ci + "</td>" +
-            "<td>" + socio.plan + "</td>" +
-            "<td>" + formatearFecha(socio.fecha_vencimiento) + "</td>" +
-            "<td>" + etiquetaEstado(socio.estado) + "</td>" +
-            "<td class='acciones'>" +
-            "<button onclick='hacerEntrada(" + socio.id + ")'>Entrada</button> " +
-            "<a class='boton' href='socio.html?id=" + socio.id + "'>Ver ficha</a> " +
-            "<button class='boton-eliminar' onclick='eliminarSocio(" + socio.id + ")'>Eliminar</button>" +
-            "</td>" +
-            "</tr>";
+        tabla.innerHTML += `
+            <tr>
+                <td>${socio.nombre}</td>
+                <td>${socio.ci}</td>
+                <td>${socio.plan}</td>
+                <td>${formatearFecha(socio.fecha_vencimiento)}</td>
+                <td>${etiquetaEstado(socio.estado)}</td>
+                <td class="acciones">
+                    <button onclick="hacerEntrada(${socio.id})">Entrada</button>
+                    <a class="boton" href="socio.html?id=${socio.id}">Ver ficha</a>
+                    <button class="boton-eliminar" onclick="eliminarSocio(${socio.id})">Eliminar</button>
+                </td>
+            </tr>`;
     }
 }
 
@@ -108,7 +108,7 @@ async function hacerEntrada(id) {
 // Eliminar un socio
 async function eliminarSocio(id) {
     const confirmar = confirm(
-        "¿Estás seguro de que querés eliminar este socio? " +
+        "¿Estás seguro de que quieres eliminar este socio? " +
         "También se eliminarán sus asistencias y su historial de peso. " +
         "Esta acción no se puede deshacer."
     );
@@ -160,7 +160,7 @@ function idDeLaUrl() {
     return parametros.get("id");
 }
 
-// Carga todos los datos de la ficha
+// Carga la ficha completa y reparte los datos en cada bloque
 async function cargarFicha() {
     const resultado = await llamarApi("/api/socios/" + idDeLaUrl());
     if (!resultado.ok) {
@@ -169,7 +169,15 @@ async function cargarFicha() {
     }
     const socio = resultado.datos;
 
-    // Cabecera y datos
+    mostrarDatos(socio);
+    mostrarPlan(socio);
+    mostrarSalud(socio);
+    mostrarProgreso(socio);
+    mostrarHistorial(socio);
+}
+
+// Cabecera, datos personales y formulario de edición con los valores actuales
+function mostrarDatos(socio) {
     document.getElementById("nombre").textContent = socio.nombre;
     document.getElementById("estado").innerHTML = etiquetaEstado(socio.estado);
     document.getElementById("ci").textContent = socio.ci;
@@ -177,53 +185,58 @@ async function cargarFicha() {
     document.getElementById("objetivo").textContent = socio.objetivo;
     document.getElementById("nivel").textContent = socio.nivel;
 
-    // Formulario de edición con los valores actuales
     document.getElementById("editar-nombre").value = socio.nombre;
     document.getElementById("editar-ci").value = socio.ci;
     document.getElementById("editar-telefono").value = socio.telefono;
     document.getElementById("editar-altura").value = socio.altura;
     document.getElementById("editar-objetivo").value = socio.objetivo;
     document.getElementById("editar-nivel").value = socio.nivel;
+}
 
-    // Plan
+// Plan, vencimiento y entradas de la semana (regla 1 y 3)
+function mostrarPlan(socio) {
     document.getElementById("plan").textContent = socio.plan;
     document.getElementById("vencimiento").textContent = formatearFecha(socio.fecha_vencimiento);
     document.getElementById("entradas").textContent = socio.entradas_semana + " / " + socio.dias_por_semana;
     cargarPlanes("plan-renovar", socio.plan_id);
+}
 
-    // Salud (regla 4)
+// Peso, altura, IMC (regla 4) y rutina (regla 5)
+function mostrarSalud(socio) {
     document.getElementById("peso").textContent = socio.peso;
     document.getElementById("altura").textContent = socio.altura;
     document.getElementById("imc").textContent = socio.imc + " (" + socio.categoria_imc + ")";
-
-    // Rutina (regla 5)
     document.getElementById("rutina-nombre").textContent = socio.rutina.nombre;
     document.getElementById("rutina-descripcion").textContent = socio.rutina.descripcion;
+}
 
-    // Progreso (regla 6)
+// Progreso (regla 6)
+function mostrarProgreso(socio) {
     const progreso = document.getElementById("progreso");
     if (socio.progreso.resultado === "Faltan datos") {
         progreso.textContent = "Faltan datos";
         progreso.className = "";
-    } else {
-        let diferencia = socio.progreso.diferencia;
-        if (diferencia > 0) {
-            diferencia = "+" + diferencia;
-        }
-        progreso.textContent = diferencia + " kg → " + socio.progreso.resultado;
-        if (socio.progreso.resultado === "Va bien") {
-            progreso.className = "va-bien";
-        } else {
-            progreso.className = "va-mal";
-        }
+        return;
     }
 
-    // Historial de peso
+    let diferencia = socio.progreso.diferencia;
+    if (diferencia > 0) {
+        diferencia = "+" + diferencia;
+    }
+    progreso.textContent = diferencia + " kg → " + socio.progreso.resultado;
+    if (socio.progreso.resultado === "Va bien") {
+        progreso.className = "va-bien";
+    } else {
+        progreso.className = "va-mal";
+    }
+}
+
+// Tabla con el historial de peso
+function mostrarHistorial(socio) {
     const tabla = document.getElementById("tabla-pesos");
     tabla.innerHTML = "";
     for (const registro of socio.historial_peso) {
-        tabla.innerHTML +=
-            "<tr><td>" + formatearFecha(registro.fecha) + "</td><td>" + registro.peso + "</td></tr>";
+        tabla.innerHTML += `<tr><td>${formatearFecha(registro.fecha)}</td><td>${registro.peso}</td></tr>`;
     }
 }
 
