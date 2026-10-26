@@ -7,17 +7,17 @@ Guía para la presentación oral. Cada indicador de la rúbrica apunta al archiv
 | Indicador | Evidencia |
 |---|---|
 | Implementación | `base_datos.sql`: 5 tablas (`planes`, `rutinas`, `socios`, `asistencias`, `registros_peso`) con claves foráneas (líneas 52, 63, 75) y datos de ejemplo. `migraciones/001_dni_a_ci.sql` renombra una columna sin perder datos. |
-| C.R.U.D. | **C**reate: alta de socio (`app.py:166`), check-in (`app.py:320`), nuevo peso (`app.py:376`). **R**ead: lista y ficha (`app.py:152`, `app.py:255`). **U**pdate: renovar plan (`app.py:353`) y actualizar peso (`app.py:391`). **D**elete: eliminar socio (`app.py:210`). |
+| C.R.U.D. | **C**reate: alta de socio (`app.py:166`), check-in (`app.py:349`), nuevo peso (`app.py:405`). **R**ead: lista y ficha (`app.py:152`, `app.py:284`). **U**pdate: editar datos del socio (`app.py:254`, formulario "Editar datos" en `socio.html`), renovar plan y actualizar peso. **D**elete: eliminar socio (`app.py:210`). |
 | Conexión desde Python | `conectar()` en `app.py:21` con `mysql.connector`. Las funciones `consultar`, `consultar_uno` y `ejecutar` (`app.py:32-58`) usan consultas parametrizadas (`%s`). |
 
 ## Python (10 pts)
 
 | Indicador | Evidencia |
 |---|---|
-| Manejo de rutas | 9 rutas Flask con `@app.route`: `/`, `/api/planes`, `/api/socios`, `/api/socios/<int:socio_id>` y sus sub-rutas. Usan métodos GET, POST y DELETE. |
+| Manejo de rutas | 10 rutas Flask con `@app.route`: `/`, `/api/planes`, `/api/socios`, `/api/socios/<int:socio_id>` y sus sub-rutas. Usan métodos GET, POST, PUT y DELETE. |
 | Conexión con el cliente | Flask sirve `static/` desde la raíz (`app.py:14`) y expone la API JSON que consume `fetch` en `app.js:13`. |
 | Paso de información con el cliente | Entrada: `request.get_json()` (`app.py:168`). Salida: `jsonify(...)`. Los errores usan `error()` con código HTTP (`app.py:61`). Los parámetros de URL (`<int:socio_id>`) también pasan datos. |
-| Lógica (iteradores y condicionales) | Bucle `for` que valida campos obligatorios (`app.py:172`). Bucle `for` que calcula el estado de cada socio (`app.py:159`). Condicionales en las reglas: `calcular_estado`, `calcular_imc` y `calcular_progreso` (`app.py:81-118`) y en el check-in (`app.py:332-346`). |
+| Lógica (iteradores y condicionales) | Bucle `for` que valida campos obligatorios (`app.py:172`). Bucle `for` que calcula el estado de cada socio (`app.py:159`). Condicionales en las reglas: `calcular_estado`, `calcular_imc` y `calcular_progreso` (`app.py:81-118`) y en el check-in (`app.py:361-375`). |
 | Funciona sin errores | Validaciones antes de operar (peso, altura, CI duplicado, plan inexistente). Uso de `try/except/finally` con `rollback` en el borrado (`app.py:215-251`). |
 
 ## JavaScript (5 pts)
@@ -68,10 +68,8 @@ Dónde tocar según lo que pidan:
 | Un campo nuevo en el socio | Columna en `base_datos.sql`, `INSERT` y `SELECT` en `app.py`, formulario en `index.html`, dato en `app.js`. |
 | Un botón o acción nueva | Ruta en `app.py`, botón en el HTML y función en `app.js` con `llamarApi`. |
 | Un cambio visual | Clase nueva en `estilos.css` (por ejemplo, otro `:hover`). |
-| Editar datos de un socio | Hoy no existe. Habría que crear un `PUT /api/socios/<id>` con un `UPDATE`, que sería lo más completo para el CRUD. |
 
 ## Puntos débiles a tener en cuenta
 
-- **Editar socio:** el Update solo cambia plan y peso, no nombre, CI ni teléfono.
 - **Seguridad en el frontend:** `app.js` arma el HTML concatenando texto (`innerHTML +=`). Un nombre con `<script>` se inyectaría. En un proyecto de facultad es aceptable, pero conviene saber explicarlo.
 - **Duplicado en el check-in:** la consulta de "ya entró hoy" y la de "últimos 7 días" son dos SQL distintos. Es intencional, porque miden cosas diferentes.

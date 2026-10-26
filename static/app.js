@@ -177,6 +177,14 @@ async function cargarFicha() {
     document.getElementById("objetivo").textContent = socio.objetivo;
     document.getElementById("nivel").textContent = socio.nivel;
 
+    // Formulario de edición con los valores actuales
+    document.getElementById("editar-nombre").value = socio.nombre;
+    document.getElementById("editar-ci").value = socio.ci;
+    document.getElementById("editar-telefono").value = socio.telefono;
+    document.getElementById("editar-altura").value = socio.altura;
+    document.getElementById("editar-objetivo").value = socio.objetivo;
+    document.getElementById("editar-nivel").value = socio.nivel;
+
     // Plan
     document.getElementById("plan").textContent = socio.plan;
     document.getElementById("vencimiento").textContent = formatearFecha(socio.fecha_vencimiento);
@@ -216,6 +224,26 @@ async function cargarFicha() {
     for (const registro of socio.historial_peso) {
         tabla.innerHTML +=
             "<tr><td>" + formatearFecha(registro.fecha) + "</td><td>" + registro.peso + "</td></tr>";
+    }
+}
+
+// Guardar los datos editados del socio
+async function guardarEdicion(evento) {
+    evento.preventDefault();
+
+    const datos = {
+        nombre: document.getElementById("editar-nombre").value,
+        ci: document.getElementById("editar-ci").value,
+        telefono: document.getElementById("editar-telefono").value,
+        altura: document.getElementById("editar-altura").value,
+        objetivo: document.getElementById("editar-objetivo").value,
+        nivel: document.getElementById("editar-nivel").value,
+    };
+
+    const resultado = await llamarApi("/api/socios/" + idDeLaUrl(), "PUT", datos);
+    mostrarResultado(resultado);
+    if (resultado.ok) {
+        cargarFicha();
     }
 }
 
