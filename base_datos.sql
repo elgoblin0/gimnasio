@@ -97,6 +97,7 @@ CREATE TABLE asistencias (
     id INT AUTO_INCREMENT PRIMARY KEY,
     socio_id INT NOT NULL,
     fecha_hora DATETIME NOT NULL,
+    fecha_hora_salida DATETIME NULL,  -- T10: NULL mientras el socio está adentro
     fecha DATE GENERATED ALWAYS AS (DATE(fecha_hora)) STORED,
     rutina_id INT NULL,
     dia_rutina INT NULL,
@@ -377,7 +378,10 @@ INSERT INTO asistencias (socio_id, fecha_hora, rutina_id, dia_rutina) VALUES
 -- Javier (plan 3 dias) ya uso sus 3 dias de los ultimos 7: el check-in se rechaza
 (8, DATE_SUB(NOW(), INTERVAL 5 DAY), 3, 1),
 (8, DATE_SUB(NOW(), INTERVAL 3 DAY), 3, 2),
-(8, DATE_SUB(NOW(), INTERVAL 1 DAY), 3, 3);
+(8, DATE_SUB(NOW(), INTERVAL 1 DAY), 3, 3),
+-- T10: Diego y Lucia entraron hoy y todavía no salieron: el dashboard muestra 2 personas adentro
+(5, NOW(), 7, 2),
+(6, NOW(), 2, 2);
 
 -- Ana hizo todos sus ejercicios. Carlos hizo todo el Dia 1 y solo uno del Dia 2.
 -- Javier solo el Dia 1: se ve claro lo hecho y lo no hecho.

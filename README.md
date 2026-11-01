@@ -91,9 +91,10 @@ gimnasio/
 ├── tests/             ← pruebas de las reglas
 └── static/
     ├── login.html     ← entrada al sistema
-    ├── index.html     ← búsqueda de socios, check-in, alta y precios
-    ├── socio.html     ← ficha: IMC, rutina, progreso, pagos, auditoría, renovar
-    ├── dashboard.html ← totales, listas por estado y socios en riesgo
+    ├── index.html     ← búsqueda de socios, entrada/salida y alta
+    ├── socio.html     ← ficha en pestañas: resumen, rutina, progreso y pagos, editar y eliminar
+    ├── dashboard.html ← ocupación ahora, gráficos, socios en riesgo y listas por estado
+    ├── planes.html    ← precios de los planes (solo administrador)
     ├── usuarios.html  ← listado y alta de usuarios (solo administrador)
     ├── app.js         ← llamadas a la API (fetch)
     └── estilos.css
@@ -170,6 +171,7 @@ Si ya tenías la base creada y no quieres perder los datos, en vez de reimportar
 | `migraciones/006_rutina_por_dia.sql` | Agrega los ejercicios por día y lo que hizo cada socio. Las entradas anteriores quedan sin rutina. Se puede repetir sin problema. |
 | `migraciones/007_usuarios.sql` | Agrega los usuarios, con los dos de ejemplo. Se puede repetir sin problema. |
 | `migraciones/008_imc_manual.sql` | Agrega `socios.imc_manual`, vacío para todos los socios. Se puede repetir sin problema. |
+| `migraciones/009_salida.sql` | Agrega `asistencias.fecha_hora_salida` (T10). Las entradas viejas quedan sin salida y no cuentan como adentro. Se puede repetir sin problema. |
 
 ## Dashboard (T6)
 
@@ -244,6 +246,7 @@ Toda ruta pide sesión, salvo el login. Las marcadas con (admin) son solo para e
 | PUT | `/api/socios/<id>` | Editar nombre, CI, teléfono, altura, objetivo y nivel |
 | DELETE | `/api/socios/<id>` | Eliminar socio y sus historiales, incluida la auditoría, en una transacción (admin) |
 | POST | `/api/socios/<id>/checkin` | Registrar una entrada |
+| POST | `/api/socios/<id>/salida` | Registrar la salida de hoy (T10) |
 | POST | `/api/socios/<id>/renovar` | Renovar o cambiar de plan, registrando el pago |
 | POST | `/api/socios/<id>/peso` | Registrar un peso nuevo (borra el IMC manual) |
 | PUT | `/api/socios/<id>/imc` | Guardar un IMC manual de 10 a 70 (admin) |
@@ -253,7 +256,7 @@ Toda ruta pide sesión, salvo el login. Las marcadas con (admin) son solo para e
 | POST | `/api/socios/<id>/descongelar` | Terminar el congelamiento antes de tiempo |
 | POST, DELETE | `/api/socios/<id>/asistencias/<id>/ejercicios/<id>` | Marcar o desmarcar un ejercicio de una entrada |
 | POST | `/api/socios/<id>/subir-nivel` | Confirmar la subida de nivel sugerida |
-| GET | `/api/dashboard` | Socios por estado, ingresos y plan más vendido del mes, listas por estado y socios en riesgo |
+| GET | `/api/dashboard` | Socios por estado, ingresos y plan más vendido del mes, listas por estado, socios en riesgo, ingresos de los últimos 6 meses, entradas de los últimos 28 días y personas adentro sobre el aforo |
 
 ## Problemas frecuentes
 

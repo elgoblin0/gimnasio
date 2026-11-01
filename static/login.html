@@ -3,20 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gimnasio - Iniciar sesión</title>
+    <title>Hierro - Iniciar sesión</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap">
     <link rel="stylesheet" href="estilos.css">
 </head>
-<body>
+<body class="login">
     <header>
-        <h1>GIMNASIO</h1>
+        <div class="barra">
+            <span class="marca"><span class="logo"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="6" width="3" height="12" rx="1"/><rect x="16" y="6" width="3" height="12" rx="1"/><path d="M2.5 9.5v5M21.5 9.5v5M8 12h8"/></svg></span> Hierro</span>
+        </div>
     </header>
 
     <main>
         <!-- Aquí aparecen los mensajes de éxito o error -->
         <div id="mensaje"></div>
 
+        <h1>Iniciar sesión</h1>
+        <p class="subtitulo">Entrá con tu usuario de Hierro.</p>
+
         <section>
-            <h2>Iniciar sesión</h2>
             <form onsubmit="iniciarSesion(event)">
                 <div class="campos">
                     <label>Usuario <input id="usuario" autocomplete="username" required></label>

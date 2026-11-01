@@ -3,24 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gimnasio - Socios</title>
+    <title>Hierro - Socios</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap">
     <link rel="stylesheet" href="estilos.css">
 </head>
 <body>
     <header>
-        <h1>GIMNASIO</h1>
-        <a href="dashboard.html">Dashboard</a>
-        <a class="solo-admin" href="usuarios.html">Usuarios</a>
-        <div id="sesion"></div>
+        <div class="barra">
+            <a class="marca" href="index.html"><span class="logo"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="6" width="3" height="12" rx="1"/><rect x="16" y="6" width="3" height="12" rx="1"/><path d="M2.5 9.5v5M21.5 9.5v5M8 12h8"/></svg></span> Hierro</a>
+            <nav>
+                <a class="actual" href="index.html">Socios</a>
+                <a href="dashboard.html">Dashboard</a>
+                <a class="solo-admin" href="planes.html">Planes</a>
+                <a class="solo-admin" href="usuarios.html">Usuarios</a>
+            </nav>
+            <div id="sesion"></div>
+        </div>
     </header>
 
     <main>
+        <div class="encabezado">
+            <div>
+                <h1>Socios</h1>
+                <p class="subtitulo">Buscá un socio, registrá su entrada o abrí su ficha.</p>
+            </div>
+        </div>
+
         <!-- Aquí aparecen los mensajes de éxito o error -->
         <div id="mensaje"></div>
 
         <section>
-            <h2>Socios</h2>
-            <form id="form-busqueda" onsubmit="buscarSocios(event)">
+            <form id="form-busqueda" class="busqueda" onsubmit="buscarSocios(event)">
                 <div class="campos">
                     <label>Nombre o CI <input id="busqueda" type="search"></label>
                     <label>Estado
@@ -35,7 +49,7 @@
                     </label>
                 </div>
                 <button type="submit">Buscar</button>
-                <button type="button" onclick="limpiarBusqueda()">Limpiar</button>
+                <button type="button" class="secundario" onclick="limpiarBusqueda()">Limpiar</button>
             </form>
             <div class="tabla-scroll">
                 <table>
@@ -55,26 +69,9 @@
             </div>
         </section>
 
-        <section class="solo-admin">
-            <h2>Precios de los planes</h2>
-            <div class="tabla-scroll">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Plan</th>
-                            <th>Días</th>
-                            <th>Precio</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <!-- Las filas las rellena cargarPrecios() en app.js -->
-                    <tbody id="tabla-precios"></tbody>
-                </table>
-            </div>
-        </section>
-
         <section>
             <h2>Nuevo socio</h2>
+            <p class="nota">El plan empieza a contar desde hoy.</p>
             <form id="form-alta" onsubmit="darDeAlta(event)">
                 <div class="campos">
                     <label>Nombre y Apellido <input id="nombre" required></label>
@@ -112,7 +109,6 @@
         mostrarSesion();
         cargarSocios();
         cargarPlanes("plan", null);
-        cargarPrecios();
     </script>
 </body>
 </html>

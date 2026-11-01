@@ -32,9 +32,9 @@ Guía para la presentación oral. Cada indicador de la rúbrica apunta al archiv
 
 | Indicador | Evidencia |
 |---|---|
-| Construcción de la página | `static/login.html` (entrada), `static/index.html` (lista y alta), `static/socio.html` (ficha) y `static/usuarios.html` (usuarios). Etiquetas semánticas: `header`, `main`, `section`, `table`, `form`, `label`. |
+| Construcción de la página | `static/login.html` (entrada), `static/index.html` (lista y alta), `static/socio.html` (ficha en pestañas), `static/dashboard.html` (dashboard), `static/planes.html` (precios) y `static/usuarios.html` (usuarios). Etiquetas semánticas: `header`, `main`, `section`, `table`, `form`, `label`. |
 | Funcionamiento coordinado con el servidor | Las tablas y los desplegables se rellenan desde la API (`cargarSocios()`, `cargarPlanes()`). El formulario envía los datos con `onsubmit="darDeAlta(event)"`. |
-| Navegabilidad entre páginas | `login.html` → `index.html` → `socio.html?id=N` (botón "Ver ficha") → "← Volver" (`socio.html:11`). `index.html` → `usuarios.html` para el administrador. Sin sesión, `llamarApi` redirige a `login.html`. |
+| Navegabilidad entre páginas | `login.html` → `index.html` → `socio.html?id=N` (botón "Ver ficha") → "← Socios". La barra de arriba lleva a Socios, Dashboard y, para el administrador, Planes y Usuarios. Sin sesión, `llamarApi` redirige a `login.html`. |
 | Estructura | `<!DOCTYPE html>`, `lang="es"`, `meta viewport`, `title`, `head` y `body` en todas las páginas. |
 
 ## Hojas de estilo y CSS (5 + 5 pts)

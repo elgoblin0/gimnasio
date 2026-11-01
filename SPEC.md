@@ -35,6 +35,7 @@ Cobros reales, envío de correos o WhatsApp, códigos QR, portal para socios, li
 | T7 | Rutina por día, cumplimiento y nivel | [#11](https://github.com/elgoblin0/gimnasio/issues/11) | T1 |
 | T8 | Login, roles y listado de usuarios | [#12](https://github.com/elgoblin0/gimnasio/issues/12) | T3, T5, T6, T7 |
 | T9 | IMC manual (opcional) | [#13](https://github.com/elgoblin0/gimnasio/issues/13) | T8 |
+| T10 | Salida y ocupación actual | (sin issue todavía) | T6 |
 
 ## T1. Base
 
@@ -209,6 +210,15 @@ Quien paga antes del vencimiento no recibe solo los días del plan, sino tambié
 - `socios` suma `imc_manual DECIMAL(4,2) NULL`. Solo lo edita el administrador, con valores de 10 a 70.
 - Si tiene valor, reemplaza al calculado: la categoría sale de ese número y la ficha lo indica como "manual".
 - Registrar un peso nuevo o cambiar la altura lo borra, para que no quede desactualizado. También hay un botón para volver al cálculo.
+
+## T10. Salida y ocupación actual
+
+- `asistencias` suma `fecha_hora_salida DATETIME NULL`: queda vacía mientras el socio está adentro.
+- `POST /api/socios/<id>/salida` cierra la entrada de hoy que no tiene salida. Si no entró hoy o ya salió, devuelve 400.
+- Está adentro quien entró hoy y no salió. Una entrada de un día anterior sin salida no cuenta: si alguien se olvida de marcar la salida, deja de contar al cambiar de día.
+- El listado de socios indica `adentro` y muestra **Salida** en vez de **Entrada**.
+- El dashboard muestra cuántos hay adentro sobre el aforo (`AFORO` en `app.py`, 40 por ahora) y se actualiza solo cada 30 segundos.
+- Como hay una sola entrada por día, quien sale no puede volver a entrar ese mismo día.
 
 ## Definición de terminado (cada ticket)
 

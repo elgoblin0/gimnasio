@@ -1,47 +1,30 @@
 /* =============================================
    Estilos del gimnasio (CSS básico, sin frameworks)
+   Diseño: tonos papel, títulos con serif (Newsreader) y texto con Inter.
+   Si no hay internet, se usan Georgia y la fuente del sistema.
    ============================================= */
+
+/* Colores y fuentes en un solo lugar: cambiar uno acá lo cambia en todas las páginas */
+:root {
+    --fondo: #f3f0e8;
+    --tarjeta: #fbfaf6;
+    --texto: #1d1b18;
+    --texto-medio: #45403a;
+    --texto-suave: #6e685d;
+    --borde: #e2ddd1;
+    --borde-suave: #ece8de;
+    --borde-campo: #d4cdbf;
+    --peligro: #b91c1c;
+    --serif: "Newsreader", Georgia, serif;
+    --sans: "Inter", "Segoe UI", system-ui, sans-serif;
+}
 
 body {
     margin: 0;
-    font-family: Arial, sans-serif;
-    background: #f2f2f2;
-    color: #222;
-}
-
-header {
-    background: #222;
-    color: white;
-    padding: 16px;
-}
-
-header h1 {
-    margin: 0;
-    font-size: 24px;
-}
-
-header a {
-    color: #ccc;
-    text-decoration: none;
-    margin-right: 12px;
-}
-
-main {
-    max-width: 900px;
-    margin: 0 auto;
-    padding: 16px;
-}
-
-section {
-    background: white;
-    padding: 16px;
-    margin-bottom: 16px;
-    border-radius: 6px;
-}
-
-h2 {
-    margin-top: 0;
-    font-size: 18px;
+    font-family: var(--sans);
+    font-size: 14px;
+    background: var(--fondo);
+    color: var(--texto);
 }
 
 /* El atributo hidden tiene que ganarle al display de botones y etiquetas */
@@ -54,34 +37,191 @@ body:not(.rol-admin) .solo-admin {
     display: none;
 }
 
+/* ---------- Barra de arriba ---------- */
+
+header {
+    background: var(--tarjeta);
+    border-bottom: 1px solid var(--borde);
+}
+
+.barra {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 0 24px;
+    min-height: 56px;
+    display: flex;
+    align-items: center;
+    gap: 32px;
+    flex-wrap: wrap;
+}
+
+.marca {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--serif);
+    font-size: 22px;
+    font-weight: 500;
+    color: var(--texto);
+    text-decoration: none;
+}
+
+/* Logo: una mancuerna dibujada con SVG dentro de un cuadradito oscuro */
+.logo {
+    width: 26px;
+    height: 26px;
+    border-radius: 5px;
+    background: var(--texto);
+    color: white;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+nav {
+    display: flex;
+    gap: 4px;
+    flex: 1;
+}
+
+nav a {
+    padding: 18px 12px;
+    color: var(--texto-suave);
+    text-decoration: none;
+}
+
+nav a:hover {
+    color: var(--texto);
+}
+
+/* La página en la que estás se marca con una raya abajo */
+nav a.actual {
+    color: var(--texto);
+    font-weight: 500;
+    box-shadow: inset 0 -2px 0 var(--texto);
+}
+
 #sesion {
-    margin-top: 8px;
-    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 13px;
+    color: var(--texto-suave);
+}
+
+/* ---------- Contenido ---------- */
+
+main {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 40px 24px 64px;
+}
+
+/* Jerarquía: título de página grande con serif, secciones medianas, etiquetas chicas */
+h1 {
+    margin: 0;
+    font-family: var(--serif);
+    font-size: 44px;
+    font-weight: 400;
+    letter-spacing: -0.015em;
+    line-height: 1.05;
+}
+
+.encabezado {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+}
+
+.subtitulo {
+    margin: 6px 0 0;
+    color: var(--texto-suave);
+}
+
+.volver {
+    display: inline-block;
+    margin-bottom: 8px;
+    font-size: 13px;
+    color: var(--texto-suave);
+    text-decoration: none;
+}
+
+h2 {
+    margin: 0 0 12px;
+    font-family: var(--serif);
+    font-size: 23px;
+    font-weight: 500;
+    letter-spacing: -0.005em;
+}
+
+.nota {
+    margin: -8px 0 16px;
+    font-size: 13px;
+    color: var(--texto-suave);
+}
+
+section {
+    background: var(--tarjeta);
+    border: 1px solid var(--borde);
+    border-radius: 8px;
+    padding: 24px;
+    margin-bottom: 24px;
+}
+
+section p {
+    margin: 8px 0;
+}
+
+/* Dos columnas que pasan a una en pantallas chicas (nunca tres: min() evita que se desborde en el celular) */
+.columnas {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(420px, 100%), 1fr));
+    gap: 24px;
+    align-items: start;
+    margin-bottom: 24px;
+}
+
+.columnas section {
+    margin-bottom: 0;
 }
 
 /* ---------- Mensajes ---------- */
 
 .mensaje {
-    padding: 12px;
-    margin-bottom: 16px;
-    border-radius: 6px;
-    font-weight: bold;
+    padding: 12px 16px;
+    margin-bottom: 24px;
+    border: 1px solid;
+    border-radius: 8px;
+    font-weight: 500;
 }
 
 .mensaje.ok {
-    background: #d4edda;
-    color: #155724;
+    background: #eef3ea;
+    color: #2f5a2a;
+    border-color: #cbdcc4;
 }
 
 .mensaje.error {
-    background: #f8d7da;
-    color: #721c24;
+    background: #f8ece8;
+    color: #8c2a1c;
+    border-color: #e8c9c0;
 }
 
 /* ---------- Tablas ---------- */
 
 .tabla-scroll {
     overflow-x: auto;
+}
+
+/* Una tabla que va pegada a los bordes de su sección */
+section .tabla-scroll:last-child {
+    margin: 0 -24px -24px;
 }
 
 table {
@@ -91,61 +231,94 @@ table {
 
 th, td {
     text-align: left;
-    padding: 8px;
-    border-bottom: 1px solid #ddd;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--borde-suave);
+}
+
+th {
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--texto-suave);
+    border-bottom-color: var(--borde);
+}
+
+th:first-child, td:first-child {
+    padding-left: 24px;
+}
+
+th:last-child, td:last-child {
+    padding-right: 24px;
+}
+
+tbody tr:last-child td {
+    border-bottom: none;
+}
+
+td {
+    vertical-align: middle;
+}
+
+/* En las entradas de la rutina cada celda tiene varias líneas: alineadas arriba */
+#tabla-entradas td {
+    vertical-align: top;
 }
 
 .acciones {
     white-space: nowrap;
+    text-align: right;
 }
 
-/* ---------- Estados del socio (regla 2) ---------- */
+/* ---------- Estados del socio (regla 2): un punto de color y el texto ---------- */
 
 .estado {
-    padding: 3px 8px;
-    border-radius: 10px;
-    font-size: 13px;
-    color: white;
+    white-space: nowrap;
+    font-weight: normal;
 }
 
-.activo {
-    background: #28a745;
+.estado::before {
+    content: "";
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    margin-right: 8px;
+    border-radius: 50%;
+    vertical-align: middle;
+    background: currentColor;
 }
 
-.por-vencer {
-    background: #fd7e14;
+/* En el título de la ficha el estado va dentro de una pastilla */
+h1 .estado {
+    display: inline-flex;
+    align-items: center;
+    height: 24px;
+    padding: 0 10px;
+    margin-left: 8px;
+    border: 1px solid var(--borde);
+    border-radius: 999px;
+    background: var(--tarjeta);
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0;
+    vertical-align: middle;
 }
 
-.vencido {
-    background: #dc3545;
+.activo::before { background: #15803d; }
+.por-vencer::before { background: #b45309; }
+.vencido::before { background: #b91c1c; }
+.congelado::before { background: #0369a1; }
+.cancelado::before { background: #a8a294; }
+
+/* ---------- Progreso (regla 6) y rutina (regla 12) ---------- */
+
+.va-bien, .hecho {
+    color: #2f6b2a;
 }
 
-.congelado {
-    background: #17a2b8;
-}
-
-.cancelado {
-    background: #6c757d;
-}
-
-/* ---------- Progreso (regla 6) ---------- */
-
-.va-bien {
-    color: #28a745;
-}
-
-.va-mal {
-    color: #dc3545;
-}
-
-/* ---------- Rutina: qué hizo y qué no (regla 12) ---------- */
-
-.hecho {
-    color: #28a745;
-}
-
-.no-hecho {
-    color: #dc3545;
+.va-mal, .no-hecho {
+    color: var(--peligro);
 }
 
 /* ---------- Formularios y botones ---------- */
@@ -153,98 +326,554 @@ th, td {
 .campos {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 12px;
-    margin-bottom: 12px;
+    gap: 16px;
+    margin-bottom: 20px;
 }
 
 label {
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    font-size: 14px;
-    margin-bottom: 8px;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--texto-medio);
 }
 
 label.casilla {
     flex-direction: row;
     align-items: center;
-}
-
-#acciones-renovar, #acciones-congelar {
-    margin-bottom: 12px;
-}
-
-input, select {
-    padding: 6px;
-    font-size: 14px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-}
-
-button, .boton {
-    padding: 6px 12px;
-    font-size: 14px;
-    background: #222;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    text-decoration: none;
-    display: inline-block;
-}
-
-button:hover, .boton:hover {
-    background: #444;
-}
-
-/* ---------- Ficha: dos columnas (una en móvil) ---------- */
-
-.columnas {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-    margin-bottom: 16px;
-}
-
-.columnas section {
-    margin-bottom: 0;
-}
-
-@media (max-width: 600px) {
-    .columnas {
-        grid-template-columns: 1fr;
-    }
-}
-
-
-/* ---------- Dashboard: tarjetas con números (sin librerías de gráficos) ---------- */
-
-.tarjetas {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 12px;
-}
-
-.tarjeta {
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    padding: 12px;
-    text-align: center;
-}
-
-.tarjeta .numero {
-    display: block;
-    font-size: 26px;
-    font-weight: bold;
+    gap: 8px;
+    font-weight: normal;
     margin-bottom: 6px;
 }
 
+input, select {
+    height: 36px;
+    box-sizing: border-box;
+    padding: 0 10px;
+    font-family: inherit;
+    font-size: 14px;
+    color: var(--texto);
+    background: white;
+    border: 1px solid var(--borde-campo);
+    border-radius: 6px;
+}
 
-/* Botón para eliminar socios */
+input:focus, select:focus {
+    outline: none;
+    border-color: var(--texto);
+}
+
+input[type="checkbox"] {
+    width: 15px;
+    height: 15px;
+    margin: 0;
+    accent-color: var(--texto);
+}
+
+/* Búsqueda de socios: los campos y los botones en una sola fila */
+.busqueda {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 12px;
+    padding-bottom: 20px;
+    margin-bottom: 0;
+}
+
+.busqueda .campos {
+    flex: 1 1 400px;
+    grid-template-columns: minmax(180px, 1fr) 250px;
+    margin-bottom: 0;
+}
+
+.busqueda + .tabla-scroll {
+    border-top: 1px solid var(--borde);
+}
+
+/* Los precios se editan dentro de la tabla */
+td input {
+    width: 110px;
+    height: 32px;
+}
+
+/* Campo y botón en la misma fila (renovar, congelar, peso, IMC) */
+.fila {
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
+    margin-bottom: 16px;
+}
+
+.fila label {
+    flex: 1;
+}
+
+button, .boton {
+    display: inline-flex;
+    align-items: center;
+    height: 36px;
+    box-sizing: border-box;
+    padding: 0 14px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    background: var(--texto);
+    color: white;
+    border: 1px solid var(--texto);
+    border-radius: 6px;
+    cursor: pointer;
+    text-decoration: none;
+    vertical-align: middle;
+}
+
+button:hover {
+    background: #3a3631;
+}
+
+/* Botón secundario: fondo claro con borde */
+button.secundario, #sesion button {
+    background: white;
+    color: var(--texto);
+    border-color: var(--borde-campo);
+}
+
+button.secundario:hover, #sesion button:hover {
+    background: var(--fondo);
+}
+
+#sesion button, td button {
+    height: 30px;
+    padding: 0 10px;
+    font-size: 13px;
+}
+
+/* "Ver ficha" es un enlace de texto, no un botón lleno */
+.boton {
+    height: 30px;
+    padding: 0 6px;
+    font-size: 13px;
+    background: none;
+    border: none;
+    color: var(--texto-medio);
+}
+
+.boton:hover {
+    color: var(--texto);
+    text-decoration: underline;
+}
+
+/* Eliminar y cancelar: texto rojo, sin llamar la atención hasta pasar el mouse */
 .boton-eliminar {
-    background: #dc3545;
+    background: white;
+    color: var(--peligro);
+    border-color: var(--borde);
 }
 
 .boton-eliminar:hover {
-    background: #b02a37;
+    background: #f8ece8;
+}
+
+/* ---------- Tarjetas con números (dashboard y ficha) ---------- */
+
+/* Celdas unidas por una línea fina: el gap de 1px deja ver el fondo como borde */
+.tarjetas {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1px;
+    background: var(--borde);
+    border: 1px solid var(--borde);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 24px;
+}
+
+section .tarjetas:last-child {
+    margin-bottom: 0;
+}
+
+/* La etiqueta va arriba y el número abajo (column-reverse invierte el orden del HTML) */
+.tarjeta {
+    display: flex;
+    flex-direction: column-reverse;
+    justify-content: flex-end;
+    gap: 6px;
+    background: var(--tarjeta);
+    padding: 18px 20px;
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--texto-suave);
+}
+
+.tarjeta .numero {
+    font-family: var(--serif);
+    font-size: 36px;
+    font-weight: 400;
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+    text-transform: none;
+    color: var(--texto);
+}
+
+.tarjeta .estado {
+    color: var(--texto-medio);
+}
+
+/* ---------- Gráficos del dashboard (SVG hecho a mano en app.js) ---------- */
+
+.grafico {
+    position: relative;
+}
+
+.grafico svg {
+    display: block;
+}
+
+.linea-guia {
+    stroke: var(--borde-suave);
+}
+
+.eje {
+    font-size: 11px;
+    fill: var(--texto-suave);
+}
+
+.barra {
+    fill: #57524a;
+}
+
+.zona {
+    fill: transparent;
+}
+
+/* La columna bajo el mouse se marca más oscura y con un fondo suave */
+.columna:hover .barra {
+    fill: var(--texto);
+}
+
+.columna:hover .zona {
+    fill: rgba(29, 27, 24, 0.04);
+}
+
+.tooltip {
+    position: absolute;
+    transform: translate(-50%, calc(-100% - 12px));
+    padding: 6px 10px;
+    border-radius: 6px;
+    background: var(--texto);
+    color: white;
+    font-size: 12px;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+/* Ocupación (T10): medio círculo con el número en el centro */
+.medidor {
+    position: relative;
+    max-width: 320px;
+    margin: 8px auto 0;
+}
+
+.medidor svg {
+    display: block;
+    width: 100%;
+}
+
+/* Puntas rectas: con puntas redondas, un valor chico se veía como una mancha */
+.medidor-fondo, .medidor-valor {
+    fill: none;
+    stroke-width: 14;
+}
+
+.medidor-fondo {
+    stroke: var(--borde-suave);
+}
+
+.medidor-valor {
+    stroke: var(--texto);
+}
+
+.medidor-texto {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    color: var(--texto-suave);
+    font-size: 13px;
+}
+
+.medidor-numero {
+    font-family: var(--serif);
+    font-size: 52px;
+    line-height: 1;
+    color: var(--texto);
+}
+
+.medidor-texto strong {
+    margin-top: 6px;
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--texto-medio);
+}
+
+/* Marca "Adentro" junto al nombre en la tabla de socios */
+.adentro {
+    margin-left: 8px;
+    padding: 2px 8px;
+    border: 1px solid var(--borde);
+    border-radius: 999px;
+    font-size: 11px;
+    color: var(--texto-medio);
+}
+
+/* Socios por estado: nombre, barra y cantidad en una fila */
+.barra-estado {
+    display: grid;
+    grid-template-columns: 120px 1fr 80px;
+    align-items: center;
+    gap: 16px;
+    padding: 8px 0;
+}
+
+.pista {
+    height: 8px;
+    border-radius: 4px;
+    background: var(--borde-suave);
+    overflow: hidden;
+}
+
+.relleno {
+    height: 100%;
+    border-radius: 4px;
+    background: #57524a;
+}
+
+.cantidad {
+    text-align: right;
+    font-weight: 500;
+}
+
+.porcentaje {
+    margin-left: 4px;
+    font-weight: normal;
+    color: var(--texto-suave);
+}
+
+/* ---------- Estados vacíos: texto gris y en cursiva, para que no parezca un dato ---------- */
+
+.vacio {
+    padding: 28px 24px;
+    text-align: center;
+    font-style: italic;
+    color: var(--texto-suave);
+}
+
+.tarjeta .numero.sin-dato {
+    color: var(--borde-campo);
+}
+
+/* ---------- Listas por estado del dashboard: plegables con <details> ---------- */
+
+.lista-estado {
+    background: var(--tarjeta);
+    border: 1px solid var(--borde);
+    border-radius: 8px;
+    margin-bottom: 12px;
+    overflow: hidden;
+}
+
+.lista-estado summary {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 24px;
+    cursor: pointer;
+    font-family: var(--serif);
+    font-size: 20px;
+    list-style: none;
+}
+
+.lista-estado summary::-webkit-details-marker {
+    display: none;
+}
+
+/* Flechita que gira al abrir */
+.lista-estado summary::after {
+    content: "";
+    width: 7px;
+    height: 7px;
+    margin-left: auto;
+    border-right: 1.5px solid var(--texto-suave);
+    border-bottom: 1.5px solid var(--texto-suave);
+    transform: rotate(45deg);
+    transition: transform 0.15s;
+}
+
+.lista-estado[open] summary::after {
+    transform: rotate(-135deg);
+}
+
+.lista-estado summary .estado {
+    font-family: var(--serif);
+}
+
+.cantidad-lista {
+    font-family: var(--sans);
+    font-size: 13px;
+    color: var(--texto-suave);
+}
+
+.lista-estado[open] summary {
+    border-bottom: 1px solid var(--borde);
+}
+
+/* ---------- Ficha del socio ---------- */
+
+/* Pestañas: botones de texto con una raya debajo del elegido */
+.pestanas {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--borde);
+    overflow-x: auto;
+}
+
+button.pestana {
+    height: auto;
+    padding: 12px 14px;
+    background: none;
+    border: none;
+    border-radius: 0;
+    color: var(--texto-suave);
+    white-space: nowrap;
+}
+
+button.pestana:hover {
+    background: none;
+    color: var(--texto);
+}
+
+button.pestana.actual {
+    color: var(--texto);
+    box-shadow: inset 0 -2px 0 var(--texto);
+}
+
+.zona-peligro {
+    border-color: #e8c9c0;
+}
+
+/* Filas "dato: valor" con el valor a la derecha */
+.dato {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 10px 0;
+    margin: 0;
+    border-bottom: 1px solid var(--borde-suave);
+}
+
+.dato > span:first-child {
+    color: var(--texto-suave);
+}
+
+.aviso {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    padding: 14px 20px;
+    margin-bottom: 24px;
+    background: var(--tarjeta);
+    border: 1px solid var(--borde);
+    border-radius: 8px;
+}
+
+.separador {
+    border-top: 1px solid var(--borde-suave);
+    padding-top: 16px;
+}
+
+#ejercicios-del-dia {
+    margin: 4px 0 16px;
+    padding-left: 18px;
+    color: var(--texto-medio);
+}
+
+/* ---------- Página de login ---------- */
+
+.login main {
+    max-width: 360px;
+    padding-top: 12vh;
+    text-align: center;
+}
+
+.login h1 {
+    font-size: 34px;
+}
+
+.login section {
+    margin-top: 24px;
+    text-align: left;
+}
+
+.login .campos {
+    grid-template-columns: 1fr;
+}
+
+.login button[type="submit"] {
+    width: 100%;
+    justify-content: center;
+    height: 40px;
+}
+
+/* ---------- Pantallas chicas ---------- */
+
+@media (max-width: 700px) {
+    .barra {
+        gap: 0 16px;
+        padding: 8px 16px 0;
+    }
+
+    nav {
+        order: 3;
+        flex-basis: 100%;
+        overflow-x: auto;
+    }
+
+    nav a {
+        padding: 12px;
+    }
+
+    #sesion {
+        margin-left: auto;
+    }
+
+    main {
+        padding: 28px 16px 48px;
+    }
+
+    h1 {
+        font-size: 34px;
+    }
+
+    .busqueda .campos {
+        grid-template-columns: 1fr;
+    }
+
+    section {
+        padding: 20px;
+    }
+
+    section .tabla-scroll:last-child {
+        margin: 0 -20px -20px;
+    }
 }

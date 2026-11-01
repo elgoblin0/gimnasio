@@ -45,6 +45,9 @@ PRECIO_MINIMO = 0.01
 PRECIO_MAXIMO = 999999.99
 CONGELAMIENTO_MAXIMO = 30
 DIAS_PARA_RIESGO = 14  # días sin entrar para que un socio esté en riesgo (REGLA 10)
+MESES_GRAFICO = 6  # meses del gráfico de ingresos del dashboard
+DIAS_GRAFICO = 28  # días del gráfico de entradas del dashboard
+AFORO = 40  # personas que entran a la vez en el gimnasio (T10)
 
 # Rutina por día (REGLAS 11 a 14)
 DIAS_POR_RUTINA = 3
@@ -57,6 +60,13 @@ CUMPLIMIENTO_PARA_SUBIR = 80
 SQL_CONGELADO = (
     "EXISTS(SELECT 1 FROM congelamientos c WHERE c.socio_id = s.id "
     "AND c.fecha_inicio <= CURDATE() AND CURDATE() < c.fecha_fin) AS congelado"
+)
+
+# Columna calculada: 1 si el socio entró hoy y todavía no salió (T10).
+# Una entrada de un día anterior sin salida no cuenta: el olvido se cierra solo al cambiar de día.
+SQL_ADENTRO = (
+    "EXISTS(SELECT 1 FROM asistencias a WHERE a.socio_id = s.id "
+    "AND a.fecha = CURDATE() AND a.fecha_hora_salida IS NULL) AS adentro"
 )
 
 
@@ -576,7 +586,7 @@ def listar_socios():
 
     socios = consultar(
         "SELECT s.id, s.nombre, s.ci, p.nombre AS plan, s.fecha_vencimiento, s.fecha_cancelacion, "
-        + SQL_CONGELADO +
+        + SQL_CONGELADO + ", " + SQL_ADENTRO +
         " FROM socios s JOIN planes p ON s.plan_id = p.id "
         + condicion + "ORDER BY s.nombre",
         parametros,
@@ -598,6 +608,7 @@ def listar_socios():
             "plan": socio["plan"],
             "fecha_vencimiento": str(socio["fecha_vencimiento"]),
             "estado": estado,
+            "adentro": bool(socio["adentro"]),
         })
     return jsonify(resultado)
 
@@ -860,6 +871,21 @@ def hacer_checkin(socio_id):
         return jsonify({"mensaje": "Entrada registrada"})
     return jsonify({"mensaje": "Entrada registrada: hoy le toca el Día " + str(dia)})
 
+
+
+# 22. Salida (T10): cierra la entrada de hoy que todavía no tiene salida
+@app.route("/api/socios/<int:socio_id>/salida", methods=["POST"])
+def hacer_salida(socio_id):
+    if consultar_uno("SELECT id FROM socios WHERE id = %s", (socio_id,)) is None:
+        return error("El socio no existe", 404)
+    entrada = consultar_uno(
+        "SELECT id FROM asistencias WHERE socio_id = %s AND fecha = CURDATE() AND fecha_hora_salida IS NULL",
+        (socio_id,),
+    )
+    if entrada is None:
+        return error("No está adentro: no entró hoy o ya salió")
+    ejecutar("UPDATE asistencias SET fecha_hora_salida = NOW() WHERE id = %s", (entrada["id"],))
+    return jsonify({"mensaje": "Salida registrada"})
 
 # 8. Renovar plan (se puede cambiar de plan)
 @app.route("/api/socios/<int:socio_id>/renovar", methods=["POST"])
@@ -1181,6 +1207,30 @@ def ver_dashboard():
     cantidades = {venta["nombre"]: venta["cantidad"] for venta in ventas}
     plan_mas_vendido = elegir_plan_mas_vendido(cantidades)
 
+    # Para los gráficos: ingresos de los últimos 6 meses y entradas de los últimos 28 días.
+    # Los meses y días sin datos van con 0, así el gráfico no tiene huecos.
+    meses = [inicio_mes]
+    for _ in range(MESES_GRAFICO - 1):
+        meses.insert(0, (meses[0] - timedelta(days=1)).replace(day=1))
+    pagos_por_mes = consultar(
+        "SELECT YEAR(fecha) AS anio, MONTH(fecha) AS mes, SUM(monto) AS total FROM pagos "
+        "WHERE fecha >= %s AND fecha < %s GROUP BY anio, mes",
+        (meses[0], inicio_siguiente),
+    )
+    total_por_mes = {(fila["anio"], fila["mes"]): float(fila["total"]) for fila in pagos_por_mes}
+
+    dias_grafico = [date.today() - timedelta(days=atras) for atras in range(DIAS_GRAFICO - 1, -1, -1)]
+    entradas_por_dia = consultar(
+        "SELECT fecha, COUNT(*) AS cantidad FROM asistencias WHERE fecha >= %s GROUP BY fecha",
+        (dias_grafico[0],),
+    )
+    cantidad_por_dia = {fila["fecha"]: fila["cantidad"] for fila in entradas_por_dia}
+
+    # Ocupación ahora (T10): entradas de hoy sin salida
+    adentro = consultar(
+        "SELECT COUNT(*) AS total FROM asistencias WHERE fecha = CURDATE() AND fecha_hora_salida IS NULL"
+    )[0]["total"]
+
     # Listas en vez de diccionarios: jsonify ordena las claves y se perdería este orden
     return jsonify({
         "mes": inicio_mes.strftime("%m/%Y"),
@@ -1190,6 +1240,15 @@ def ver_dashboard():
         "ventas_plan_mas_vendido": cantidades.get(plan_mas_vendido, 0),
         "listas": [{"estado": estado, "socios": socios} for estado, socios in listas.items()],
         "en_riesgo": en_riesgo,
+        "ingresos_por_mes": [
+            {"mes": mes.strftime("%m/%Y"), "total": round(total_por_mes.get((mes.year, mes.month), 0), 2)}
+            for mes in meses
+        ],
+        "adentro_ahora": adentro,
+        "aforo": AFORO,
+        "entradas_por_dia": [
+            {"fecha": str(dia), "cantidad": cantidad_por_dia.get(dia, 0)} for dia in dias_grafico
+        ],
     })
 
 
