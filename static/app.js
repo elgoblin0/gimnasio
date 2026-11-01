@@ -215,6 +215,7 @@ async function cargarFicha() {
     mostrarProgreso(socio);
     mostrarHistorial(socio);
     mostrarPagos(socio);
+    mostrarSeguimiento(socio);
 }
 
 // Cabecera, datos personales y formulario de edición con los valores actuales
@@ -309,6 +310,81 @@ function mostrarPagos(socio) {
                 <td>${escaparHtml(formatearFecha(pago.vencimiento_nuevo))}</td>
             </tr>`;
     }
+}
+
+// Rutina por día: lo que le toca, lo que hizo y sus porcentajes (reglas 11 a 14)
+function mostrarSeguimiento(socio) {
+    const seguimiento = socio.seguimiento;
+    document.getElementById("cumplimiento").textContent = seguimiento.cumplimiento + "%";
+    document.getElementById("asistencia").textContent = seguimiento.asistencia + "%";
+
+    const sugerencia = document.getElementById("sugerencia-nivel");
+    sugerencia.hidden = seguimiento.nivel_sugerido === null;
+    document.getElementById("nivel-sugerido").textContent = seguimiento.nivel_sugerido;
+
+    const dia = document.getElementById("dia-actual");
+    const lista = document.getElementById("ejercicios-del-dia");
+    lista.innerHTML = "";
+    if (seguimiento.dia_actual === null) {
+        dia.textContent = "Sin rutina asignada";
+    } else {
+        dia.textContent = "Le toca el Día " + seguimiento.dia_actual;
+        for (const ejercicio of seguimiento.ejercicios_del_dia) {
+            lista.innerHTML += `<li>${escaparHtml(ejercicio.nombre)} (${escaparHtml(ejercicio.series_repeticiones)})</li>`;
+        }
+    }
+
+    const tabla = document.getElementById("tabla-entradas");
+    tabla.innerHTML = "";
+    if (seguimiento.entradas.length === 0) {
+        tabla.innerHTML = '<tr><td colspan="3">Sin entradas en los últimos 28 días</td></tr>';
+    }
+    for (const entrada of seguimiento.entradas) {
+        tabla.innerHTML += `
+            <tr>
+                <td>${escaparHtml(formatearFecha(entrada.fecha))}</td>
+                <td>${escaparHtml(entrada.rutina)}, Día ${entrada.dia}</td>
+                <td>${ejerciciosDeLaEntrada(entrada)}</td>
+            </tr>`;
+    }
+}
+
+// Casillas de una entrada: marcadas las que hizo, sin marcar las que no
+function ejerciciosDeLaEntrada(entrada) {
+    let html = "";
+    for (const ejercicio of entrada.ejercicios) {
+        let marcado = "";
+        let clase = "no-hecho";
+        if (ejercicio.hecho) {
+            marcado = "checked";
+            clase = "hecho";
+        }
+        html += `
+            <label class="casilla ${clase}">
+                <input type="checkbox" ${marcado} onchange="marcarEjercicio(${entrada.id}, ${ejercicio.id}, this.checked)">
+                ${escaparHtml(ejercicio.nombre)} (${escaparHtml(ejercicio.series_repeticiones)})
+            </label>`;
+    }
+    return html;
+}
+
+// Marcar o desmarcar un ejercicio de una entrada (regla 12)
+async function marcarEjercicio(asistenciaId, ejercicioId, hecho) {
+    let metodo = "DELETE";
+    if (hecho) {
+        metodo = "POST";
+    }
+    const url = "/api/socios/" + idDeLaUrl() + "/asistencias/" + asistenciaId + "/ejercicios/" + ejercicioId;
+    const resultado = await llamarApi(url, metodo);
+    mostrarResultado(resultado);
+    cargarFicha();
+}
+
+// Confirmar la subida de nivel sugerida (regla 14)
+async function subirNivel() {
+    const resultado = await llamarApi("/api/socios/" + idDeLaUrl() + "/subir-nivel", "POST");
+    mostrarResultado(resultado);
+    cargarFicha();
 }
 
 // Guardar los datos editados del socio

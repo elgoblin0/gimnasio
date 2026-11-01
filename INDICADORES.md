@@ -55,6 +55,8 @@ Guía para la presentación oral. Cada indicador de la rúbrica apunta al archiv
 | Días sumados en el pago | Regla 7: `calcular_dias_restantes` y `guardar_pago` en `app.py`, tabla `pagos` en `base_datos.sql`, historial en la ficha (`mostrarPagos` en `app.js`). |
 | Cancelados | Regla 8: `cancelar_socio` en `app.py`, columna `fecha_cancelacion`, estado calculado en `calcular_estado`. |
 | Congelar plan (agregado) | Regla 9: `congelar_plan` y `descongelar_plan` en `app.py`, tabla `congelamientos`. No hace falta una tarea programada, porque el estado sale de comparar fechas. |
+| Rutina por día | Reglas 11 y 12: `calcular_siguiente_dia` en el check-in, `armar_seguimiento` y `marcar_ejercicio` en `app.py`, tablas `rutina_ejercicios` y `ejercicios_realizados`, `mostrarSeguimiento` en `app.js`. |
+| Asistencia y subir de nivel (agregados) | Reglas 13 y 14: `calcular_asistencia`, `calcular_nivel_sugerido` y `subir_nivel` en `app.py`. |
 
 ## Funcionamiento y conocimiento del sistema (1 pt)
 

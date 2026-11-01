@@ -127,6 +127,16 @@ th, td {
     color: #dc3545;
 }
 
+/* ---------- Rutina: qué hizo y qué no (regla 12) ---------- */
+
+.hecho {
+    color: #28a745;
+}
+
+.no-hecho {
+    color: #dc3545;
+}
+
 /* ---------- Formularios y botones ---------- */
 
 .campos {

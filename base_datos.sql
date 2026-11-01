@@ -36,6 +36,21 @@ CREATE TABLE rutinas (
 );
 
 -- ---------------------------------------------
+-- EJERCICIOS DE CADA RUTINA
+-- dia: 1 a 3. orden: posición del ejercicio dentro del día
+-- ---------------------------------------------
+CREATE TABLE rutina_ejercicios (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    rutina_id INT NOT NULL,
+    dia INT NOT NULL,
+    orden INT NOT NULL,
+    nombre VARCHAR(60) NOT NULL,
+    series_repeticiones VARCHAR(20) NOT NULL,
+    UNIQUE KEY un_ejercicio_por_lugar (rutina_id, dia, orden),
+    FOREIGN KEY (rutina_id) REFERENCES rutinas(id)
+);
+
+-- ---------------------------------------------
 -- SOCIOS
 -- peso: peso actual en kg
 -- altura: en metros (ej: 1.75)
@@ -60,6 +75,7 @@ CREATE TABLE socios (
 -- ASISTENCIAS
 -- Una fila por cada vez que un socio entra al gimnasio
 -- fecha: se calcula sola a partir de fecha_hora
+-- rutina_id y dia_rutina: la rutina y el día que le tocaron en esa entrada
 -- El UNIQUE impide dos entradas del mismo socio el mismo día
 -- ---------------------------------------------
 CREATE TABLE asistencias (
@@ -67,8 +83,24 @@ CREATE TABLE asistencias (
     socio_id INT NOT NULL,
     fecha_hora DATETIME NOT NULL,
     fecha DATE GENERATED ALWAYS AS (DATE(fecha_hora)) STORED,
+    rutina_id INT NULL,
+    dia_rutina INT NULL,
     UNIQUE KEY una_entrada_por_dia (socio_id, fecha),
-    FOREIGN KEY (socio_id) REFERENCES socios(id)
+    FOREIGN KEY (socio_id) REFERENCES socios(id),
+    FOREIGN KEY (rutina_id) REFERENCES rutinas(id)
+);
+
+-- ---------------------------------------------
+-- EJERCICIOS REALIZADOS
+-- Una fila por cada ejercicio que el socio hizo en una entrada
+-- ---------------------------------------------
+CREATE TABLE ejercicios_realizados (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    asistencia_id INT NOT NULL,
+    ejercicio_id INT NOT NULL,
+    UNIQUE KEY un_ejercicio_por_entrada (asistencia_id, ejercicio_id),
+    FOREIGN KEY (asistencia_id) REFERENCES asistencias(id),
+    FOREIGN KEY (ejercicio_id) REFERENCES rutina_ejercicios(id)
 );
 
 -- ---------------------------------------------
@@ -136,6 +168,89 @@ INSERT INTO rutinas (nombre, objetivo, nivel, descripcion) VALUES
 ('Activo medio',      'mantenerse',    'intermedio',   '30 min cardio + 3x12 cuerpo completo'),
 ('Activo pro',        'mantenerse',    'avanzado',     'Entrenamiento funcional + cardio moderado');
 
+INSERT INTO rutina_ejercicios (rutina_id, dia, orden, nombre, series_repeticiones) VALUES
+(1, 1, 1, 'Caminata en cinta', '20 min'),
+(1, 1, 2, 'Sentadilla sin peso', '3x12'),
+(1, 1, 3, 'Plancha', '3x20 s'),
+(1, 2, 1, 'Bicicleta fija', '20 min'),
+(1, 2, 2, 'Remo en máquina', '3x12'),
+(1, 2, 3, 'Elevación de talones', '3x15'),
+(1, 3, 1, 'Elíptica', '20 min'),
+(1, 3, 2, 'Prensa de piernas', '3x12'),
+(1, 3, 3, 'Abdominales cortos', '3x15'),
+(2, 1, 1, 'Intervalos en cinta', '25 min'),
+(2, 1, 2, 'Sentadilla con mancuernas', '3x12'),
+(2, 1, 3, 'Flexiones', '3x10'),
+(2, 2, 1, 'Intervalos en bicicleta', '25 min'),
+(2, 2, 2, 'Peso muerto rumano', '3x12'),
+(2, 2, 3, 'Plancha lateral', '3x30 s'),
+(2, 3, 1, 'Remo cardio', '20 min'),
+(2, 3, 2, 'Zancadas', '3x12'),
+(2, 3, 3, 'Press de hombros', '3x12'),
+(3, 1, 1, 'HIIT en cinta', '20 min'),
+(3, 1, 2, 'Sentadilla frontal', '4x8'),
+(3, 1, 3, 'Dominadas', '4x6'),
+(3, 2, 1, 'Burpees', '5x12'),
+(3, 2, 2, 'Peso muerto', '4x6'),
+(3, 2, 3, 'Press de banca', '4x8'),
+(3, 3, 1, 'Saltos a cajón', '5x10'),
+(3, 3, 2, 'Zancadas con barra', '4x10'),
+(3, 3, 3, 'Remo con barra', '4x8'),
+(4, 1, 1, 'Press de pecho en máquina', '3x12'),
+(4, 1, 2, 'Jalón al pecho', '3x12'),
+(4, 1, 3, 'Prensa de piernas', '3x12'),
+(4, 2, 1, 'Curl de bíceps', '3x12'),
+(4, 2, 2, 'Extensión de tríceps', '3x12'),
+(4, 2, 3, 'Extensión de piernas', '3x12'),
+(4, 3, 1, 'Press de hombros en máquina', '3x12'),
+(4, 3, 2, 'Remo en máquina', '3x12'),
+(4, 3, 3, 'Curl femoral', '3x12'),
+(5, 1, 1, 'Press de banca', '4x10'),
+(5, 1, 2, 'Remo con barra', '4x10'),
+(5, 1, 3, 'Press militar', '4x10'),
+(5, 2, 1, 'Sentadilla', '4x10'),
+(5, 2, 2, 'Peso muerto rumano', '4x10'),
+(5, 2, 3, 'Elevación de talones', '4x15'),
+(5, 3, 1, 'Dominadas asistidas', '4x10'),
+(5, 3, 2, 'Fondos', '4x10'),
+(5, 3, 3, 'Curl de bíceps', '4x10'),
+(6, 1, 1, 'Press de banca', '5x8'),
+(6, 1, 2, 'Press inclinado', '5x8'),
+(6, 1, 3, 'Fondos con lastre', '5x8'),
+(6, 2, 1, 'Sentadilla', '5x8'),
+(6, 2, 2, 'Peso muerto', '5x5'),
+(6, 2, 3, 'Prensa de piernas', '5x10'),
+(6, 3, 1, 'Dominadas con lastre', '5x8'),
+(6, 3, 2, 'Remo con barra', '5x8'),
+(6, 3, 3, 'Curl con barra', '5x8'),
+(7, 1, 1, 'Caminata', '20 min'),
+(7, 1, 2, 'Estiramiento de piernas', '10 min'),
+(7, 1, 3, 'Movilidad de hombros', '5 min'),
+(7, 2, 1, 'Bicicleta suave', '20 min'),
+(7, 2, 2, 'Estiramiento de espalda', '10 min'),
+(7, 2, 3, 'Movilidad de cadera', '5 min'),
+(7, 3, 1, 'Elíptica suave', '20 min'),
+(7, 3, 2, 'Estiramiento general', '10 min'),
+(7, 3, 3, 'Respiración y equilibrio', '5 min'),
+(8, 1, 1, 'Cardio moderado', '30 min'),
+(8, 1, 2, 'Sentadilla', '3x12'),
+(8, 1, 3, 'Flexiones', '3x12'),
+(8, 2, 1, 'Bicicleta', '30 min'),
+(8, 2, 2, 'Remo con mancuerna', '3x12'),
+(8, 2, 3, 'Plancha', '3x40 s'),
+(8, 3, 1, 'Elíptica', '30 min'),
+(8, 3, 2, 'Zancadas', '3x12'),
+(8, 3, 3, 'Press de hombros', '3x12'),
+(9, 1, 1, 'Circuito funcional', '30 min'),
+(9, 1, 2, 'Kettlebell swing', '4x15'),
+(9, 1, 3, 'Plancha con toque', '4x20'),
+(9, 2, 1, 'Cardio moderado', '30 min'),
+(9, 2, 2, 'Sentadilla con salto', '4x12'),
+(9, 2, 3, 'Dominadas', '4x8'),
+(9, 3, 1, 'Circuito con TRX', '30 min'),
+(9, 3, 2, 'Peso muerto con kettlebell', '4x12'),
+(9, 3, 3, 'Flexiones con rotación', '4x12');
+
 -- Fechas relativas a hoy para que siempre haya socios en cada estado
 INSERT INTO socios (nombre, ci, telefono, peso, altura, objetivo, nivel, plan_id, fecha_vencimiento) VALUES
 ('Ana Lopez',    '11111111A', '600111111', 68.00, 1.65, 'bajar peso',    'principiante', 1, DATE_ADD(CURDATE(), INTERVAL 20 DAY)), -- activo
@@ -192,15 +307,32 @@ INSERT INTO registros_peso (socio_id, fecha, peso) VALUES
 (10, DATE_SUB(CURDATE(), INTERVAL 12 DAY), 79.00);
 
 -- Carlos (plan 3 dias) ya entro 2 veces esta semana para poder probar el limite
-INSERT INTO asistencias (socio_id, fecha_hora) VALUES
-(1, DATE_SUB(NOW(), INTERVAL 1 DAY)),
-(2, DATE_SUB(NOW(), INTERVAL 1 DAY)),
-(2, DATE_SUB(NOW(), INTERVAL 2 DAY)),
-(1, DATE_SUB(NOW(), INTERVAL 10 DAY)),
-(5, DATE_SUB(NOW(), INTERVAL 2 DAY)),
-(6, DATE_SUB(NOW(), INTERVAL 4 DAY)),
-(7, DATE_SUB(NOW(), INTERVAL 15 DAY)),
+INSERT INTO asistencias (socio_id, fecha_hora, rutina_id, dia_rutina) VALUES
+(2, DATE_SUB(NOW(), INTERVAL 2 DAY), 5, 1),
+(2, DATE_SUB(NOW(), INTERVAL 1 DAY), 5, 2),
+-- Ana (rutina 1) lleva 8 entradas en 28 dias: con su cumplimiento se le sugiere subir de nivel
+(1, DATE_SUB(NOW(), INTERVAL 22 DAY), 1, 1),
+(1, DATE_SUB(NOW(), INTERVAL 19 DAY), 1, 2),
+(1, DATE_SUB(NOW(), INTERVAL 16 DAY), 1, 3),
+(1, DATE_SUB(NOW(), INTERVAL 13 DAY), 1, 1),
+(1, DATE_SUB(NOW(), INTERVAL 10 DAY), 1, 2),
+(1, DATE_SUB(NOW(), INTERVAL 7 DAY), 1, 3),
+(1, DATE_SUB(NOW(), INTERVAL 4 DAY), 1, 1),
+(1, DATE_SUB(NOW(), INTERVAL 1 DAY), 1, 2),
+(5, DATE_SUB(NOW(), INTERVAL 2 DAY), 7, 1),
+(6, DATE_SUB(NOW(), INTERVAL 4 DAY), 2, 1),
+(7, DATE_SUB(NOW(), INTERVAL 15 DAY), 8, 1),
 -- Javier (plan 3 dias) ya uso sus 3 dias de los ultimos 7: el check-in se rechaza
-(8, DATE_SUB(NOW(), INTERVAL 1 DAY)),
-(8, DATE_SUB(NOW(), INTERVAL 3 DAY)),
-(8, DATE_SUB(NOW(), INTERVAL 5 DAY));
+(8, DATE_SUB(NOW(), INTERVAL 5 DAY), 3, 1),
+(8, DATE_SUB(NOW(), INTERVAL 3 DAY), 3, 2),
+(8, DATE_SUB(NOW(), INTERVAL 1 DAY), 3, 3);
+
+-- Ana hizo todos sus ejercicios. Carlos hizo todo el Dia 1 y solo uno del Dia 2.
+-- Javier solo el Dia 1: se ve claro lo hecho y lo no hecho.
+INSERT INTO ejercicios_realizados (asistencia_id, ejercicio_id)
+SELECT a.id, e.id
+FROM asistencias a
+JOIN rutina_ejercicios e ON e.rutina_id = a.rutina_id AND e.dia = a.dia_rutina
+WHERE a.socio_id = 1
+   OR (a.socio_id = 2 AND (a.dia_rutina = 1 OR e.orden = 1))
+   OR (a.socio_id = 8 AND a.dia_rutina = 1);

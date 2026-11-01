@@ -129,6 +129,46 @@ class TestProgreso(unittest.TestCase):  # REGLA 6
                 )
 
 
+class TestRutinaPorDia(unittest.TestCase):  # REGLAS 11 a 14
+    def test_siguiente_dia(self):
+        casos = [(None, 1), (1, 2), (2, 3), (3, 1)]
+        for ultimo, esperado in casos:
+            with self.subTest(ultimo=ultimo):
+                self.assertEqual(gimnasio.calcular_siguiente_dia(ultimo), esperado)
+
+    def test_cumplimiento(self):
+        self.assertEqual(gimnasio.calcular_cumplimiento(0, 0), 0)
+        self.assertEqual(gimnasio.calcular_cumplimiento(2, 3), 67)
+        self.assertEqual(gimnasio.calcular_cumplimiento(3, 3), 100)
+
+    def test_asistencia(self):
+        casos = [
+            (6, 3, 50),    # plan de 3 días: se esperan 12
+            (12, 3, 100),
+            (6, 7, 50),    # plan libre: se esperan 12, no 28
+            (28, 7, 100),  # nunca pasa de 100
+            (0, 3, 0),
+        ]
+        for entradas, dias_por_semana, esperado in casos:
+            with self.subTest(entradas=entradas, dias=dias_por_semana):
+                self.assertEqual(gimnasio.calcular_asistencia(entradas, dias_por_semana), esperado)
+
+    def test_nivel_sugerido(self):
+        casos = [
+            ("principiante", 8, 80, "intermedio"),
+            ("intermedio", 8, 80, "avanzado"),
+            ("avanzado", 12, 100, None),
+            ("principiante", 7, 100, None),
+            ("principiante", 8, 79, None),
+            ("viejo", 8, 100, None),
+        ]
+        for nivel, entradas, cumplimiento, esperado in casos:
+            with self.subTest(nivel=nivel, entradas=entradas, cumplimiento=cumplimiento):
+                self.assertEqual(
+                    gimnasio.calcular_nivel_sugerido(nivel, entradas, cumplimiento), esperado
+                )
+
+
 class TestLeerNumeros(unittest.TestCase):
     def test_numeros_validos(self):
         self.assertEqual(gimnasio.leer_numero("1.75"), 1.75)
