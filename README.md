@@ -32,7 +32,7 @@ Proyecto de la facultad: gestión de socios de un gimnasio. Permite dar de alta 
    ```
 2. Abrir el panel de XAMPP y arrancar **MySQL** y **Apache** (Apache solo hace falta para phpMyAdmin).
 3. Abrir `http://localhost/phpmyadmin`, ir a la pestaña **Importar** y subir `base_datos.sql`.
-   (Ojo: borra la base de datos `gimnasio` y la vuelve a crear con los datos de ejemplo.)
+   (Ojo: borra la base de datos `gimnasio` y la vuelve a crear con los datos de ejemplo. Usa un servidor exclusivo para este proyecto; no importes este archivo en una instancia compartida.)
 4. Instalar las librerías de Python:
    ```
    pip3 install -r requirements.txt
@@ -78,7 +78,7 @@ gimnasio/
 └── static/
     ├── login.html     ← entrada al sistema
     ├── index.html     ← lista de socios, check-in, alta y precios
-    ├── socio.html     ← ficha: IMC, rutina, progreso, pagos, renovar
+    ├── socio.html     ← ficha: IMC, rutina, progreso, pagos, auditoría, renovar
     ├── usuarios.html  ← listado y alta de usuarios (solo administrador)
     ├── app.js         ← llamadas a la API (fetch)
     └── estilos.css
@@ -98,10 +98,11 @@ gimnasio/
 | `registros_peso` | Historial de peso para ver el progreso. |
 | `pagos` | Una fila por cada pago: monto, días del plan y días que le quedaban al socio. |
 | `congelamientos` | Una fila por cada vez que un socio congela su plan, con su inicio y su fin. |
+| `auditoria_socios` | Plan y vencimiento anteriores y nuevos, socio y fecha/hora de cada cambio. |
 
 ## Reglas del gimnasio (la lógica que se evalúa)
 
-Todas están en `app.py`.
+Las reglas están en `app.py`. Los dos triggers de T4 están en `base_datos.sql` y en `migraciones/004_triggers.sql`.
 
 | # | Regla |
 |---|---|
@@ -137,7 +138,7 @@ Las fechas de ejemplo se calculan a partir del día en que se importa el `.sql`,
 | Paula Sosa | Cancelada (se ve con "Ver solo cancelados"). Al renovar, el plan cuenta desde hoy, sin sus 10 días restantes. |
 | Martin Silva | Congelado 12 días más. El check-in se rechaza, y al descongelar se restan esos 12 días. |
 
-Si los datos quedan desordenados de tanto probar, se vuelve a importar `base_datos.sql` y listo.
+Si los datos quedan desordenados de tanto probar, se puede volver a importar `base_datos.sql` en el servidor exclusivo del proyecto; se pierden los datos de esa base.
 
 ### Migraciones
 
@@ -148,9 +149,38 @@ Si ya tenías la base creada y no quieres perder los datos, en vez de reimportar
 | `migraciones/001_dni_a_ci.sql` | Renombra la columna `socios.dni` a `ci` conservando los datos. Se puede repetir sin problema. |
 | `migraciones/002_checkin_unico.sql` | Impide dos entradas del mismo socio el mismo día. Si ya hay duplicados, conserva la entrada más antigua y borra las demás. Se puede repetir sin problema. |
 | `migraciones/003_pagos.sql` | Agrega el precio de los planes y la tabla de pagos. Se puede repetir sin problema. |
+| `migraciones/004_triggers.sql` | Crea la auditoría y los dos triggers. Conserva los datos al repetirse con `DROP TRIGGER IF EXISTS`; no reconstruye cambios anteriores. |
 | `migraciones/005_cancelar_congelar.sql` | Agrega la fecha de cancelación y la tabla de congelamientos. Se puede repetir sin problema. |
 | `migraciones/006_rutina_por_dia.sql` | Agrega los ejercicios por día y lo que hizo cada socio. Las entradas anteriores quedan sin rutina. Se puede repetir sin problema. |
 | `migraciones/007_usuarios.sql` | Agrega los usuarios, con los dos de ejemplo. Se puede repetir sin problema. |
+
+## Triggers y auditoría (T4)
+
+- `copiar_peso_socio`, `AFTER INSERT ON registros_peso`: copia cada peso insertado a `socios.peso`, incluso si se inserta desde SQL. `registrar_peso` solo inserta el registro; el trigger participa en la misma transacción.
+- `auditar_plan_socio`, `AFTER UPDATE ON socios`: inserta en `auditoria_socios` solo si cambia `plan_id` o `fecha_vencimiento`. `<=>` compara los valores de forma segura; `NOT` detecta una diferencia. Cambiar peso, nombre o guardar el mismo plan y vencimiento no agrega auditoría.
+- Renovar, congelar y descongelar quedan registrados porque cambian el vencimiento. El trigger no conoce al usuario de la aplicación, así que no se guarda ese dato.
+- `GET /api/socios/<id>` devuelve `auditoria`, del cambio más reciente al más antiguo (fecha/hora e id). Cada fila incluye `plan_anterior`, `plan_nuevo`, `nombre_plan_anterior`, `nombre_plan_nuevo`, `vencimiento_anterior`, `vencimiento_nuevo` y `fecha_hora` en texto. Los nombres se consultan del catálogo actual de planes.
+- La ficha muestra **Historial de plan y vencimiento**, o “Sin cambios de plan o vencimiento”. Todos sus valores pasan por `escaparHtml` antes de entrar por `innerHTML`.
+- Para una base existente, importa `migraciones/004_triggers.sql` antes de usar esta versión de la app. Requiere las tablas `socios`, `planes` y `registros_peso`; se conserva el historial al repetirla. Cada trigger tiene una sola sentencia SQL, sin `DELIMITER`, para importar desde phpMyAdmin en MySQL o MariaDB.
+
+Para la presentación, inicia sesión como `admin`. Ana ya tiene una renovación histórica y Martin un congelamiento histórico en los datos de ejemplo; Carlos empieza sin auditoría. En la ficha de Carlos:
+
+1. Registra un peso: cambia el peso actual, pero la auditoría sigue vacía.
+2. Renueva con otro plan: aparece una fila con los dos planes y vencimientos.
+3. Congela 7 días: aparece otra fila y el vencimiento aumenta 7 días.
+4. Descongela el mismo día: aparece otra fila y el vencimiento vuelve al anterior.
+5. Edita solo el teléfono o nombre: no aparece una fila nueva. Eliminar el socio borra también la auditoría.
+
+Pruebas de integración reproducibles, sin dependencias nuevas: prepara una base de ejemplo en un servidor **aislado**, configura su puerto y ejecuta (PowerShell):
+
+```powershell
+$env:GIMNASIO_TEST_PORT = "3309"
+python -m unittest tests.test_reglas tests.test_triggers -v
+```
+
+`tests/test_triggers.py` no importa `base_datos.sql` ni borra la base; rechaza el puerto 3306, inicia sesión con `admin` y crea/elimina sus propios socios. Sin la variable, las 7 pruebas de integración se omiten. La prueba de repetición reemplaza los triggers, así que requiere una instancia exclusiva y permiso `TRIGGER`.
+
+Evidencia T4: 33 pruebas sin base y 7 de integración en verde con MySQL 8.4.5 (3309) y MariaDB 11.4.5 (3308). Se importó `base_datos.sql` y la migración repetida en ambos mediante sus clientes SQL y desde la pestaña Importar de phpMyAdmin 5.2.2 (PHP 8.3.20). También se comprobó la actualización desde la base de `main` anterior a T4. Se comprobaron peso directo y por API, cambios de plan/vencimiento, ausencia de auditoría sin cambios, congelar/descongelar, rollback, eliminación e historial conservado al repetir la migración. Chrome sin interfaz verificó login real, historial con datos y vacío, escape de HTML y la ficha a 1280 y 390 píxeles, sin errores JavaScript. No se utilizó el puerto 3306.
 
 ## API (lo que llama `app.js`)
 
@@ -168,9 +198,9 @@ Toda ruta pide sesión, salvo el login. Las marcadas con (admin) son solo para e
 | PUT | `/api/planes/<id>` | Cambiar el precio de un plan (admin) |
 | GET | `/api/socios` | Lista de socios con su estado. Oculta a los cancelados, salvo con `?estado=Cancelado` |
 | POST | `/api/socios` | Alta de socio |
-| GET | `/api/socios/<id>` | Ficha completa (IMC, rutina, progreso, historial, pagos) |
+| GET | `/api/socios/<id>` | Ficha completa (IMC, rutina, progreso, historial, pagos, auditoría) |
 | PUT | `/api/socios/<id>` | Editar nombre, CI, teléfono, altura, objetivo y nivel |
-| DELETE | `/api/socios/<id>` | Eliminar socio (admin) |
+| DELETE | `/api/socios/<id>` | Eliminar socio y sus historiales, incluida la auditoría, en una transacción (admin) |
 | POST | `/api/socios/<id>/checkin` | Registrar una entrada |
 | POST | `/api/socios/<id>/renovar` | Renovar o cambiar de plan, registrando el pago |
 | POST | `/api/socios/<id>/peso` | Registrar un peso nuevo |

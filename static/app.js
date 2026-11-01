@@ -311,6 +311,7 @@ async function cargarFicha() {
     mostrarProgreso(socio);
     mostrarHistorial(socio);
     mostrarPagos(socio);
+    mostrarAuditoria(socio);
     mostrarSeguimiento(socio);
 }
 
@@ -404,6 +405,25 @@ function mostrarPagos(socio) {
                 <td>${pago.monto}</td>
                 <td>${pago.dias_plan} + ${pago.dias_restantes}</td>
                 <td>${escaparHtml(formatearFecha(pago.vencimiento_nuevo))}</td>
+            </tr>`;
+    }
+}
+
+// Cambios de plan/vencimiento registrados por el trigger (T4).
+function mostrarAuditoria(socio) {
+    const tabla = document.getElementById("tabla-auditoria");
+    tabla.innerHTML = "";
+    if (socio.auditoria.length === 0) {
+        tabla.innerHTML = '<tr><td colspan="5">Sin cambios de plan o vencimiento</td></tr>';
+    }
+    for (const cambio of socio.auditoria) {
+        tabla.innerHTML += `
+            <tr>
+                <td>${escaparHtml(cambio.fecha_hora)}</td>
+                <td>${escaparHtml(cambio.nombre_plan_anterior)}</td>
+                <td>${escaparHtml(cambio.nombre_plan_nuevo)}</td>
+                <td>${escaparHtml(formatearFecha(cambio.vencimiento_anterior))}</td>
+                <td>${escaparHtml(formatearFecha(cambio.vencimiento_nuevo))}</td>
             </tr>`;
     }
 }
