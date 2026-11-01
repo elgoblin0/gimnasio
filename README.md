@@ -76,9 +76,9 @@ En la lista, escribe parte del nombre o del CI, elige un estado si quieres y pul
 - Sin `estado` se ocultan los cancelados. Un estado explícito muestra solo ese estado, conservando la prioridad de cancelación y congelamiento.
 - La consulta usa parámetros `%s` y `LIKE ... ESCAPE '!'`; el estado se filtra con `estado_del_socio`, sin duplicar las reglas en SQL. No cambia la base ni necesita migración.
 
-Para demostrarlo con los datos de ejemplo, inicia sesión y prueba `q=Gomez` (Maria, Valentina y Javier), `q=Gomez&estado=Vencido` (Maria y Valentina), `estado=Congelado` (Martin) y `estado=Cancelado` (Paula). Prueba un texto inexistente para ver el mensaje vacío y luego **Limpiar**. En la API, `estado=Inventado` debe devolver 400; buscar `%` o `_` no debe traer a todos los socios.
+Para demostrarlo con los datos de ejemplo, inicia sesión y prueba `q=Gomez` (Javier y Maria), `q=Gomez&estado=Vencido` (Maria), `q=9999` (Valentina, por su CI), `estado=Congelado` (Martin) y `estado=Cancelado` (Paula). Prueba un texto inexistente para ver el mensaje vacío y luego **Limpiar**. En la API, `estado=Inventado` debe devolver 400; buscar `%` o `_` no debe traer a todos los socios.
 
-Evidencia automatizada: `python -m unittest tests.test_reglas`, 40 pruebas en verde (7 de búsqueda), con la sesión y las consultas simuladas, sin MySQL. Estas pruebas verifican filtros, estados, parámetros y escapes. La integración de T2 en la app contra MySQL queda pendiente: en este entorno no se encontró un servidor separado disponible; no se importó el SQL ni se utilizó el puerto 3306. Para probarlo, usa una instancia de MySQL/MariaDB exclusiva para el proyecto: `base_datos.sql` borra la base `gimnasio`.
+Evidencia T2: 7 pruebas sin base en `tests/test_reglas.py` (sesión y consultas simuladas) y 6 de integración en `tests/test_busqueda.py` sobre MariaDB 11.4.5 en un servidor aislado (puerto 3310, nunca 3306): coincidencia parcial sin distinguir mayúsculas, CI parcial, texto + estado, cancelados ocultos, `%`, `_` y `!` como texto, intento de inyección y estado inválido. También se comprobaron en la app real, con login `admin`, los casos de demostración de arriba. Se ejecutan igual que las de T4, con `GIMNASIO_TEST_PORT`.
 
 ## Archivos
 
@@ -189,7 +189,7 @@ Pruebas de integración reproducibles, sin dependencias nuevas: prepara una base
 
 ```powershell
 $env:GIMNASIO_TEST_PORT = "3309"
-python -m unittest tests.test_reglas tests.test_triggers -v
+python -m unittest tests.test_reglas tests.test_triggers tests.test_busqueda -v
 ```
 
 `tests/test_triggers.py` no importa `base_datos.sql` ni borra la base; rechaza el puerto 3306, inicia sesión con `admin` y crea/elimina sus propios socios. Sin la variable, las 7 pruebas de integración se omiten. La prueba de repetición reemplaza los triggers, así que requiere una instancia exclusiva y permiso `TRIGGER`.
