@@ -48,6 +48,12 @@ Guía para la presentación oral. Cada indicador de la rúbrica apunta al archiv
 | Aplicación de estilos a etiquetas | Selectores de etiqueta: `body`, `header`, `main`, `section`, `table`, `th, td`, `input, select`, `label`. |
 | Eventos `:hover` | `button:hover, .boton:hover` (`estilos.css:153`) y `.boton-eliminar:hover` (`estilos.css:182`). |
 
+## Reglas nuevas pedidas por el profesor
+
+| Pedido | Evidencia |
+|---|---|
+| Días sumados en el pago | Regla 7: `calcular_dias_restantes` y `guardar_pago` en `app.py`, tabla `pagos` en `base_datos.sql`, historial en la ficha (`mostrarPagos` en `app.js`). |
+
 ## Funcionamiento y conocimiento del sistema (1 pt)
 
 Resumen para explicar en 30 segundos:

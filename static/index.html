@@ -36,6 +36,24 @@
         </section>
 
         <section>
+            <h2>Precios de los planes</h2>
+            <div class="tabla-scroll">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Plan</th>
+                            <th>Días</th>
+                            <th>Precio</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <!-- Las filas las rellena cargarPrecios() en app.js -->
+                    <tbody id="tabla-precios"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section>
             <h2>Nuevo socio</h2>
             <form id="form-alta" onsubmit="darDeAlta(event)">
                 <div class="campos">
@@ -73,6 +91,7 @@
         // Al abrir la página: cargar la tabla y los planes del desplegable
         cargarSocios();
         cargarPlanes("plan", null);
+        cargarPrecios();
     </script>
 </body>
 </html>

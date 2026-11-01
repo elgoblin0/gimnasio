@@ -48,6 +48,19 @@ class TestVencimiento(unittest.TestCase):  # REGLA 1
         self.assertEqual(gimnasio.calcular_vencimiento(dias_desde_hoy(-1), 30), dias_desde_hoy(30))
 
 
+class TestDiasRestantes(unittest.TestCase):  # REGLA 7
+    def test_casos(self):
+        casos = [(None, 0), (dias_desde_hoy(-1), 0), (date.today(), 0), (dias_desde_hoy(5), 5)]
+        for fecha, esperado in casos:
+            with self.subTest(fecha=fecha):
+                self.assertEqual(gimnasio.calcular_dias_restantes(fecha), esperado)
+
+    def test_el_vencimiento_es_hoy_mas_plan_mas_restantes(self):
+        fecha = dias_desde_hoy(5)
+        nuevo = gimnasio.calcular_vencimiento(fecha, 30)
+        self.assertEqual(nuevo, dias_desde_hoy(30 + gimnasio.calcular_dias_restantes(fecha)))
+
+
 class TestEstado(unittest.TestCase):  # REGLA 2
     def test_limites(self):
         casos = [(-1, "Vencido"), (0, "Por vencer"), (7, "Por vencer"), (8, "Activo")]
