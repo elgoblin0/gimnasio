@@ -47,6 +47,16 @@ Proyecto de la facultad: gestión de socios de un gimnasio. Permite dar de alta 
 
 Para parar el servidor: `Ctrl + C` en la terminal.
 
+Para programar con recarga automática y mensajes de error detallados, arranca el servidor con la variable de entorno `GIMNASIO_DEBUG=1`. Sin ella, el modo debug queda apagado.
+
+## Pruebas
+
+Comprueban las reglas y las validaciones. No necesitan MySQL ni instalar nada más:
+
+```
+python3 -m unittest tests.test_reglas
+```
+
 ## Archivos
 
 ```
@@ -54,6 +64,8 @@ gimnasio/
 ├── base_datos.sql     ← tablas y datos de ejemplo
 ├── app.py             ← backend Flask: reglas + API
 ├── requirements.txt   ← librerías de Python
+├── migraciones/       ← cambios para una base ya creada
+├── tests/             ← pruebas de las reglas
 └── static/
     ├── index.html     ← lista de socios, check-in y alta
     ├── socio.html     ← ficha: IMC, rutina, progreso, renovar
@@ -79,7 +91,7 @@ Todas están en `app.py`.
 |---|---|
 | 1 | Al dar de alta o renovar se calcula el vencimiento. Si sigue activo, se suma a lo que le queda; si no, desde hoy. |
 | 2 | Estado del socio: Vencido / Por vencer (7 días o menos) / Activo. |
-| 3 | Check-in: se rechaza si el plan está vencido, si ya entró hoy o si ya usó sus días por semana (últimos 7 días). |
+| 3 | Check-in: se rechaza si el plan está vencido, si ya entró hoy o si ya usó sus días por semana (últimos 7 días). La base de datos también impide dos entradas el mismo día. |
 | 4 | IMC = peso / altura², con su categoría. |
 | 5 | Rutina asignada según objetivo + nivel. |
 | 6 | Progreso: primer peso vs último según el objetivo (mantenerse = 2 kg o menos de diferencia). |
@@ -108,6 +120,7 @@ Si ya tenías la base creada y no quieres perder los datos, en vez de reimportar
 | Archivo | Qué hace |
 |---|---|
 | `migraciones/001_dni_a_ci.sql` | Renombra la columna `socios.dni` a `ci` conservando los datos. Se puede repetir sin problema. |
+| `migraciones/002_checkin_unico.sql` | Impide dos entradas del mismo socio el mismo día. Si ya hay duplicados, conserva la entrada más antigua y borra las demás. Se puede repetir sin problema. |
 
 ## API (lo que llama `app.js`)
 

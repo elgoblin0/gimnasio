@@ -43,6 +43,14 @@ function mostrarResultado(resultado) {
     }
 }
 
+// Convierte un dato en texto seguro para usarlo dentro de innerHTML:
+// "<script>" se muestra como texto y no se ejecuta
+function escaparHtml(valor) {
+    const div = document.createElement("div");
+    div.textContent = valor;
+    return div.innerHTML;
+}
+
 // "2026-10-25" -> "25/10/2026"
 function formatearFecha(fecha) {
     const partes = fecha.split("-");
@@ -84,10 +92,10 @@ async function cargarSocios() {
     for (const socio of resultado.datos) {
         tabla.innerHTML += `
             <tr>
-                <td>${socio.nombre}</td>
-                <td>${socio.ci}</td>
-                <td>${socio.plan}</td>
-                <td>${formatearFecha(socio.fecha_vencimiento)}</td>
+                <td>${escaparHtml(socio.nombre)}</td>
+                <td>${escaparHtml(socio.ci)}</td>
+                <td>${escaparHtml(socio.plan)}</td>
+                <td>${escaparHtml(formatearFecha(socio.fecha_vencimiento))}</td>
                 <td>${etiquetaEstado(socio.estado)}</td>
                 <td class="acciones">
                     <button onclick="hacerEntrada(${socio.id})">Entrada</button>
@@ -206,6 +214,12 @@ function mostrarSalud(socio) {
     document.getElementById("peso").textContent = socio.peso;
     document.getElementById("altura").textContent = socio.altura;
     document.getElementById("imc").textContent = socio.imc + " (" + socio.categoria_imc + ")";
+    // Un socio con datos antiguos puede no tener una rutina que le corresponda
+    if (socio.rutina === null) {
+        document.getElementById("rutina-nombre").textContent = "Sin rutina asignada";
+        document.getElementById("rutina-descripcion").textContent = "";
+        return;
+    }
     document.getElementById("rutina-nombre").textContent = socio.rutina.nombre;
     document.getElementById("rutina-descripcion").textContent = socio.rutina.descripcion;
 }
@@ -236,7 +250,7 @@ function mostrarHistorial(socio) {
     const tabla = document.getElementById("tabla-pesos");
     tabla.innerHTML = "";
     for (const registro of socio.historial_peso) {
-        tabla.innerHTML += `<tr><td>${formatearFecha(registro.fecha)}</td><td>${registro.peso}</td></tr>`;
+        tabla.innerHTML += `<tr><td>${escaparHtml(formatearFecha(registro.fecha))}</td><td>${escaparHtml(registro.peso)}</td></tr>`;
     }
 }
 

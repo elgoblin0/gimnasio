@@ -4,6 +4,9 @@
 # Abrir en el navegador: http://localhost:5001
 # =============================================
 
+import math
+import os
+from contextlib import contextmanager
 from datetime import date, timedelta
 
 import mysql.connector
@@ -12,6 +15,15 @@ from flask import Flask, jsonify, request
 # static_url_path="" hace que los archivos de static/ se sirvan desde la raíz
 # (ej: http://localhost:5001/socio.html)
 app = Flask(__name__, static_folder="static", static_url_path="")
+
+# Valores permitidos y límites de los datos de un socio
+OBJETIVOS = ("bajar peso", "ganar musculo", "mantenerse")
+NIVELES = ("principiante", "intermedio", "avanzado")
+LARGO_MAXIMO = {"nombre": 100, "ci": 20, "telefono": 20}
+ALTURA_MINIMA = 0.5
+ALTURA_MAXIMA = 2.5
+PESO_MINIMO = 1
+PESO_MAXIMO = 500
 
 
 # ---------------------------------------------
@@ -58,6 +70,22 @@ def ejecutar(sql, parametros=()):
     return nuevo_id
 
 
+@contextmanager
+def transaccion():
+    # Las escrituras del bloque "with" se confirman juntas.
+    # Si una falla, se deshacen todas (rollback).
+    conexion = conectar()
+    cursor = conexion.cursor()
+    try:
+        yield cursor
+        conexion.commit()
+    except Exception:
+        conexion.rollback()
+        raise
+    finally:
+        conexion.close()
+
+
 def error(mensaje, codigo=400):
     # Respuesta de error que muestra el frontend
     return jsonify({"error": mensaje}), codigo
@@ -67,15 +95,77 @@ def socio_existe(socio_id):
     return consultar_uno("SELECT id FROM socios WHERE id = %s", (socio_id,)) is not None
 
 
-# Revisa los campos obligatorios y la altura (se usa al crear y al editar).
+def leer_json():
+    # Devuelve el JSON del pedido. Un cuerpo vacío o inválido cuenta como datos faltantes.
+    datos = request.get_json(silent=True)
+    if not isinstance(datos, dict):
+        return {}
+    return datos
+
+
+def leer_numero(valor):
+    # Devuelve el número, o None si no es válido (ej: "abc", vacío, "nan")
+    if isinstance(valor, bool):
+        return None
+    try:
+        numero = float(valor)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(numero):
+        return None
+    return numero
+
+
+def leer_entero(valor):
+    # Igual que leer_numero(), pero solo acepta números enteros
+    numero = leer_numero(valor)
+    if numero is None or numero != int(numero):
+        return None
+    return int(numero)
+
+
+def validar_peso(valor):
+    # Devuelve el mensaje de error, o None si el peso está bien
+    peso = leer_numero(valor)
+    if peso is None or peso < PESO_MINIMO or peso > PESO_MAXIMO:
+        return "El peso debe estar entre " + str(PESO_MINIMO) + " y " + str(PESO_MAXIMO) + " kg"
+    return None
+
+
+# Revisa los campos obligatorios y sus valores (se usa al crear y al editar).
 # Devuelve el mensaje de error, o None si todo está bien.
 def validar_datos_socio(datos, obligatorios):
     for campo in obligatorios:
-        if not datos.get(campo):
+        valor = datos.get(campo)
+        if valor is None or str(valor).strip() == "":
             return "Falta el campo: " + campo
-    altura = float(datos["altura"])
-    if altura <= 0 or altura > 2.5:
+
+    for campo, largo in LARGO_MAXIMO.items():
+        valor = datos.get(campo)
+        if valor is None:
+            continue
+        if not isinstance(valor, str):
+            return "El campo " + campo + " debe ser texto"
+        if len(valor) > largo:
+            return "El campo " + campo + " admite hasta " + str(largo) + " caracteres"
+
+    if datos["objetivo"] not in OBJETIVOS:
+        return "El objetivo no es válido"
+    if datos["nivel"] not in NIVELES:
+        return "El nivel no es válido"
+
+    altura = leer_numero(datos["altura"])
+    if altura is None or altura < ALTURA_MINIMA or altura > ALTURA_MAXIMA:
         return "La altura debe estar en metros (ej: 1.75)"
+
+    if "peso" in obligatorios:
+        mensaje = validar_peso(datos["peso"])
+        if mensaje:
+            return mensaje
+
+    if "plan_id" in obligatorios and leer_entero(datos["plan_id"]) is None:
+        return "El plan no es válido"
+
     return None
 
 
@@ -181,7 +271,7 @@ def listar_socios():
 # 3. Alta de socio
 @app.route("/api/socios", methods=["POST"])
 def crear_socio():
-    datos = request.get_json()
+    datos = leer_json()
 
     mensaje = validar_datos_socio(datos, ["nombre", "ci", "peso", "altura", "objetivo", "nivel", "plan_id"])
     if mensaje:
@@ -189,31 +279,36 @@ def crear_socio():
 
     peso = float(datos["peso"])
     altura = float(datos["altura"])
-    if peso <= 0:
-        return error("El peso debe ser mayor que 0")
 
     if consultar_uno("SELECT id FROM socios WHERE ci = %s", (datos["ci"],)):
         return error("Ya existe un socio con ese CI")
 
-    plan = consultar_uno("SELECT * FROM planes WHERE id = %s", (datos["plan_id"],))
+    plan = consultar_uno("SELECT * FROM planes WHERE id = %s", (leer_entero(datos["plan_id"]),))
     if plan is None:
         return error("El plan no existe")
 
     # REGLA 1: socio nuevo, el plan empieza hoy
     fecha_vencimiento = calcular_vencimiento(None, plan["duracion_dias"])
 
-    socio_id = ejecutar(
-        "INSERT INTO socios (nombre, ci, telefono, peso, altura, objetivo, nivel, plan_id, fecha_vencimiento) "
-        "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
-        (datos["nombre"], datos["ci"], datos.get("telefono", ""), peso, altura,
-         datos["objetivo"], datos["nivel"], plan["id"], fecha_vencimiento),
-    )
+    # El socio y su primer peso se guardan juntos
+    try:
+        with transaccion() as cursor:
+            cursor.execute(
+                "INSERT INTO socios (nombre, ci, telefono, peso, altura, objetivo, nivel, plan_id, fecha_vencimiento) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                (datos["nombre"], datos["ci"], datos.get("telefono", ""), peso, altura,
+                 datos["objetivo"], datos["nivel"], plan["id"], fecha_vencimiento),
+            )
+            socio_id = cursor.lastrowid
 
-    # Primer registro del historial de peso
-    ejecutar(
-        "INSERT INTO registros_peso (socio_id, fecha, peso) VALUES (%s, %s, %s)",
-        (socio_id, date.today(), peso),
-    )
+            # Primer registro del historial de peso
+            cursor.execute(
+                "INSERT INTO registros_peso (socio_id, fecha, peso) VALUES (%s, %s, %s)",
+                (socio_id, date.today(), peso),
+            )
+    except mysql.connector.IntegrityError:
+        # Otro pedido guardó el mismo CI justo después de la comprobación de arriba
+        return error("Ya existe un socio con ese CI")
 
     return jsonify({"mensaje": "Socio dado de alta", "id": socio_id})
 
@@ -225,16 +320,17 @@ def eliminar_socio(socio_id):
         return error("El socio no existe", 404)
 
     # Primero las tablas que dependen del socio (por las claves foráneas)
-    ejecutar("DELETE FROM asistencias WHERE socio_id = %s", (socio_id,))
-    ejecutar("DELETE FROM registros_peso WHERE socio_id = %s", (socio_id,))
-    ejecutar("DELETE FROM socios WHERE id = %s", (socio_id,))
+    with transaccion() as cursor:
+        cursor.execute("DELETE FROM asistencias WHERE socio_id = %s", (socio_id,))
+        cursor.execute("DELETE FROM registros_peso WHERE socio_id = %s", (socio_id,))
+        cursor.execute("DELETE FROM socios WHERE id = %s", (socio_id,))
     return jsonify({"mensaje": "Socio eliminado correctamente"})
 
 
 # 5. Editar los datos de un socio (el peso y el plan se cambian por sus propias rutas)
 @app.route("/api/socios/<int:socio_id>", methods=["PUT"])
 def editar_socio(socio_id):
-    datos = request.get_json()
+    datos = leer_json()
 
     if not socio_existe(socio_id):
         return error("El socio no existe", 404)
@@ -248,12 +344,16 @@ def editar_socio(socio_id):
     if consultar_uno("SELECT id FROM socios WHERE ci = %s AND id <> %s", (datos["ci"], socio_id)):
         return error("Ya existe otro socio con ese CI")
 
-    ejecutar(
-        "UPDATE socios SET nombre = %s, ci = %s, telefono = %s, altura = %s, objetivo = %s, nivel = %s "
-        "WHERE id = %s",
-        (datos["nombre"], datos["ci"], datos.get("telefono", ""), altura,
-         datos["objetivo"], datos["nivel"], socio_id),
-    )
+    try:
+        ejecutar(
+            "UPDATE socios SET nombre = %s, ci = %s, telefono = %s, altura = %s, objetivo = %s, nivel = %s "
+            "WHERE id = %s",
+            (datos["nombre"], datos["ci"], datos.get("telefono", ""), altura,
+             datos["objetivo"], datos["nivel"], socio_id),
+        )
+    except mysql.connector.IntegrityError:
+        # Otro pedido guardó el mismo CI justo después de la comprobación de arriba
+        return error("Ya existe otro socio con ese CI")
     return jsonify({"mensaje": "Datos actualizados"})
 
 
@@ -351,20 +451,28 @@ def hacer_checkin(socio_id):
     if contar_entradas_semana(socio_id) >= socio["dias_por_semana"]:
         return error("Ya usó sus " + str(socio["dias_por_semana"]) + " días de los últimos 7")
 
-    ejecutar("INSERT INTO asistencias (socio_id, fecha_hora) VALUES (%s, NOW())", (socio_id,))
+    # Si dos pedidos llegan a la vez, el UNIQUE de la tabla rechaza el segundo
+    try:
+        ejecutar("INSERT INTO asistencias (socio_id, fecha_hora) VALUES (%s, NOW())", (socio_id,))
+    except mysql.connector.IntegrityError:
+        return error("Ya entró hoy")
     return jsonify({"mensaje": "Entrada registrada"})
 
 
 # 8. Renovar plan (se puede cambiar de plan)
 @app.route("/api/socios/<int:socio_id>/renovar", methods=["POST"])
 def renovar(socio_id):
-    datos = request.get_json()
+    datos = leer_json()
 
     socio = consultar_uno("SELECT fecha_vencimiento FROM socios WHERE id = %s", (socio_id,))
     if socio is None:
         return error("El socio no existe", 404)
 
-    plan = consultar_uno("SELECT * FROM planes WHERE id = %s", (datos.get("plan_id"),))
+    plan_id = leer_entero(datos.get("plan_id"))
+    if plan_id is None:
+        return error("El plan no es válido")
+
+    plan = consultar_uno("SELECT * FROM planes WHERE id = %s", (plan_id,))
     if plan is None:
         return error("El plan no existe")
 
@@ -381,22 +489,26 @@ def renovar(socio_id):
 # 9. Registrar un nuevo peso
 @app.route("/api/socios/<int:socio_id>/peso", methods=["POST"])
 def registrar_peso(socio_id):
-    datos = request.get_json()
+    datos = leer_json()
 
     if not socio_existe(socio_id):
         return error("El socio no existe", 404)
 
-    if not datos.get("peso") or float(datos["peso"]) <= 0:
-        return error("El peso debe ser mayor que 0")
+    mensaje = validar_peso(datos.get("peso"))
+    if mensaje:
+        return error(mensaje)
     peso = float(datos["peso"])
 
-    ejecutar(
-        "INSERT INTO registros_peso (socio_id, fecha, peso) VALUES (%s, %s, %s)",
-        (socio_id, date.today(), peso),
-    )
-    ejecutar("UPDATE socios SET peso = %s WHERE id = %s", (peso, socio_id))
+    # El historial y el peso actual se guardan juntos
+    with transaccion() as cursor:
+        cursor.execute(
+            "INSERT INTO registros_peso (socio_id, fecha, peso) VALUES (%s, %s, %s)",
+            (socio_id, date.today(), peso),
+        )
+        cursor.execute("UPDATE socios SET peso = %s WHERE id = %s", (peso, socio_id))
     return jsonify({"mensaje": "Peso registrado"})
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5001)
+    # El modo debug solo se activa con la variable de entorno GIMNASIO_DEBUG=1
+    app.run(debug=os.environ.get("GIMNASIO_DEBUG") == "1", port=5001)
