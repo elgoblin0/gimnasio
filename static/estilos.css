@@ -474,12 +474,6 @@ button.secundario:hover, #sesion button:hover {
     background: #f8ece8;
 }
 
-td .boton-eliminar {
-    background: none;
-    border: none;
-    padding: 0 6px;
-}
-
 /* ---------- Tarjetas con números (dashboard y ficha) ---------- */
 
 /* Celdas unidas por una línea fina: el gap de 1px deja ver el fondo como borde */
@@ -587,10 +581,10 @@ section .tarjetas:last-child {
     width: 100%;
 }
 
+/* Puntas rectas: con puntas redondas, un valor chico se veía como una mancha */
 .medidor-fondo, .medidor-valor {
     fill: none;
     stroke-width: 14;
-    stroke-linecap: round;
 }
 
 .medidor-fondo {
@@ -673,7 +667,108 @@ section .tarjetas:last-child {
     color: var(--texto-suave);
 }
 
+/* ---------- Estados vacíos: texto gris y en cursiva, para que no parezca un dato ---------- */
+
+.vacio {
+    padding: 28px 24px;
+    text-align: center;
+    font-style: italic;
+    color: var(--texto-suave);
+}
+
+.tarjeta .numero.sin-dato {
+    color: var(--borde-campo);
+}
+
+/* ---------- Listas por estado del dashboard: plegables con <details> ---------- */
+
+.lista-estado {
+    background: var(--tarjeta);
+    border: 1px solid var(--borde);
+    border-radius: 8px;
+    margin-bottom: 12px;
+    overflow: hidden;
+}
+
+.lista-estado summary {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 24px;
+    cursor: pointer;
+    font-family: var(--serif);
+    font-size: 20px;
+    list-style: none;
+}
+
+.lista-estado summary::-webkit-details-marker {
+    display: none;
+}
+
+/* Flechita que gira al abrir */
+.lista-estado summary::after {
+    content: "";
+    width: 7px;
+    height: 7px;
+    margin-left: auto;
+    border-right: 1.5px solid var(--texto-suave);
+    border-bottom: 1.5px solid var(--texto-suave);
+    transform: rotate(45deg);
+    transition: transform 0.15s;
+}
+
+.lista-estado[open] summary::after {
+    transform: rotate(-135deg);
+}
+
+.lista-estado summary .estado {
+    font-family: var(--serif);
+}
+
+.cantidad-lista {
+    font-family: var(--sans);
+    font-size: 13px;
+    color: var(--texto-suave);
+}
+
+.lista-estado[open] summary {
+    border-bottom: 1px solid var(--borde);
+}
+
 /* ---------- Ficha del socio ---------- */
+
+/* Pestañas: botones de texto con una raya debajo del elegido */
+.pestanas {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--borde);
+    overflow-x: auto;
+}
+
+button.pestana {
+    height: auto;
+    padding: 12px 14px;
+    background: none;
+    border: none;
+    border-radius: 0;
+    color: var(--texto-suave);
+    white-space: nowrap;
+}
+
+button.pestana:hover {
+    background: none;
+    color: var(--texto);
+}
+
+button.pestana.actual {
+    color: var(--texto);
+    box-shadow: inset 0 -2px 0 var(--texto);
+}
+
+.zona-peligro {
+    border-color: #e8c9c0;
+}
 
 /* Filas "dato: valor" con el valor a la derecha */
 .dato {

@@ -71,6 +71,27 @@ function etiquetaEstado(estado) {
     return '<span class="estado ' + clase + '">' + estado + "</span>";
 }
 
+// 1500 -> "$ 1.500"
+function formatearMoneda(monto) {
+    return "$ " + formatearNumero(Number(monto));
+}
+
+// Texto que se ve en un desplegable para un valor guardado: "ganar musculo" -> "Ganar músculo".
+// Así los datos se muestran igual que en el formulario, con mayúscula y tilde.
+function textoDeOpcion(idSelect, valor) {
+    for (const opcion of document.getElementById(idSelect).options) {
+        if (opcion.value === valor) {
+            return opcion.textContent;
+        }
+    }
+    return valor;
+}
+
+// Fila de tabla para cuando no hay nada que mostrar
+function filaVacia(columnas, texto) {
+    return `<tr><td class="vacio" colspan="${columnas}">${texto}</td></tr>`;
+}
+
 // Rellena un desplegable con los planes y marca el elegido (si hay)
 async function cargarPlanes(idSelect, planElegido) {
     const resultado = await llamarApi("/api/planes");
@@ -79,7 +100,7 @@ async function cargarPlanes(idSelect, planElegido) {
     for (const plan of resultado.datos) {
         const opcion = document.createElement("option");
         opcion.value = plan.id;
-        opcion.textContent = plan.nombre + " (" + plan.precio + ")";
+        opcion.textContent = plan.nombre + " — " + formatearMoneda(plan.precio);
         if (plan.id === planElegido) {
             opcion.selected = true;
         }
@@ -206,7 +227,7 @@ async function cargarSocios() {
     const tabla = document.getElementById("tabla-socios");
     tabla.innerHTML = "";
     if (resultado.datos.length === 0) {
-        tabla.innerHTML = '<tr><td colspan="6">No se encontraron socios</td></tr>';
+        tabla.innerHTML = filaVacia(6, "No se encontraron socios con esa búsqueda");
         return;
     }
     for (const socio of resultado.datos) {
@@ -227,7 +248,6 @@ async function cargarSocios() {
                 <td class="acciones">
                     ${botonAcceso}
                     <a class="boton" href="socio.html?id=${socio.id}">Ver ficha</a>
-                    <button class="boton-eliminar solo-admin" onclick="eliminarSocio(${socio.id})">Eliminar</button>
                 </td>
             </tr>`;
     }
@@ -256,7 +276,6 @@ async function guardarPrecio(id) {
     mostrarResultado(resultado);
     if (resultado.ok) {
         cargarPrecios();
-        cargarPlanes("plan", null);
     }
 }
 
@@ -274,7 +293,7 @@ async function hacerSalida(id) {
     cargarSocios();
 }
 
-// Eliminar un socio
+// Eliminar un socio (desde su ficha, solo administrador). Al terminar vuelve al listado.
 async function eliminarSocio(id) {
     const confirmar = confirm(
         "¿Estás seguro de que quieres eliminar este socio? " +
@@ -287,10 +306,10 @@ async function eliminarSocio(id) {
     }
 
     const resultado = await llamarApi("/api/socios/" + id, "DELETE");
-    mostrarResultado(resultado);
-
     if (resultado.ok) {
-        await cargarSocios();
+        window.location.href = "index.html";
+    } else {
+        mostrarResultado(resultado);
     }
 }
 
@@ -338,7 +357,7 @@ async function cargarDashboard() {
     // Gráfico de ingresos: una barra por mes
     const ingresos = [];
     for (const mes of datos.ingresos_por_mes) {
-        ingresos.push({ etiqueta: mes.mes, valor: mes.total, detalle: mes.mes + ": " + formatearNumero(mes.total) });
+        ingresos.push({ etiqueta: mes.mes, valor: mes.total, detalle: mes.mes + ": " + formatearMoneda(mes.total) });
     }
     graficoDeBarras("grafico-ingresos", ingresos, 1);
 
@@ -361,9 +380,13 @@ async function cargarDashboard() {
     document.getElementById("entradas-semana").textContent = entradasSemana;
     document.getElementById("socios-activos").textContent = datos.totales[0].cantidad;
     document.getElementById("mes").textContent = datos.mes;
-    document.getElementById("ingresos-mes").textContent = formatearNumero(datos.ingresos_mes);
+    document.getElementById("ingresos-mes").textContent = formatearMoneda(datos.ingresos_mes);
+    // Sin ventas se muestra una raya en gris: es una ausencia, no un dato
+    const planMasVendido = document.getElementById("plan-mas-vendido");
+    planMasVendido.classList.toggle("sin-dato", datos.plan_mas_vendido === null);
     if (datos.plan_mas_vendido === null) {
-        document.getElementById("plan-mas-vendido").textContent = "Sin ventas";
+        planMasVendido.textContent = "—";
+        planMasVendido.title = "Todavía no hubo ventas este mes";
     } else {
         document.getElementById("plan-mas-vendido").textContent =
             datos.plan_mas_vendido + " (" + datos.ventas_plan_mas_vendido + ")";
@@ -372,7 +395,7 @@ async function cargarDashboard() {
     const riesgo = document.getElementById("tabla-riesgo");
     riesgo.innerHTML = "";
     if (datos.en_riesgo.length === 0) {
-        riesgo.innerHTML = '<tr><td colspan="5">No hay socios en riesgo</td></tr>';
+        riesgo.innerHTML = filaVacia(5, "Nadie lleva 14 días o más sin entrar");
     }
     for (const socio of datos.en_riesgo) {
         // Sin entradas ni pagos no hay desde cuándo contar
@@ -392,12 +415,13 @@ async function cargarDashboard() {
 
     const listas = document.getElementById("listas-estado");
     listas.innerHTML = "";
+    // <details> es HTML común: se pliega y despliega solo al hacer clic, sin JavaScript
     for (const lista of datos.listas) {
         listas.innerHTML += `
-            <section>
-                <h2>${etiquetaEstado(lista.estado)} ${lista.socios.length}</h2>
+            <details class="lista-estado">
+                <summary>${etiquetaEstado(lista.estado)} <span class="cantidad-lista">${lista.socios.length}</span></summary>
                 ${tablaDeSocios(lista.socios)}
-            </section>`;
+            </details>`;
     }
 }
 
@@ -551,7 +575,7 @@ function mostrarDetalleAlPasar(contenedor) {
 // Tabla simple de socios con enlace a su ficha (listas del dashboard)
 function tablaDeSocios(socios) {
     if (socios.length === 0) {
-        return "<p>Ninguno</p>";
+        return '<p class="vacio">Ningún socio en este estado.</p>';
     }
     let filas = "";
     for (const socio of socios) {
@@ -578,6 +602,21 @@ function tablaDeSocios(socios) {
 // ---------------------------------------------
 // FICHA DEL SOCIO (socio.html)
 // ---------------------------------------------
+
+// Pestañas de la ficha: muestra el grupo elegido y oculta los demás.
+// El nombre queda en la dirección (#rutina) para que al recargar se abra la misma pestaña.
+function mostrarPestana(nombre) {
+    if (!document.querySelector(`[data-contenido="${nombre}"]`)) {
+        nombre = "resumen";
+    }
+    for (const grupo of document.querySelectorAll("[data-contenido]")) {
+        grupo.hidden = grupo.dataset.contenido !== nombre;
+    }
+    for (const boton of document.querySelectorAll(".pestana")) {
+        boton.classList.toggle("actual", boton.dataset.pestana === nombre);
+    }
+    history.replaceState(null, "", "#" + nombre);
+}
 
 // Lee el id de la URL: socio.html?id=3 -> "3"
 function idDeLaUrl() {
@@ -610,8 +649,8 @@ function mostrarDatos(socio) {
     document.getElementById("estado").innerHTML = etiquetaEstado(socio.estado);
     document.getElementById("ci").textContent = socio.ci;
     document.getElementById("telefono").textContent = socio.telefono;
-    document.getElementById("objetivo").textContent = socio.objetivo;
-    document.getElementById("nivel").textContent = socio.nivel;
+    document.getElementById("objetivo").textContent = textoDeOpcion("editar-objetivo", socio.objetivo);
+    document.getElementById("nivel").textContent = textoDeOpcion("editar-nivel", socio.nivel);
 
     document.getElementById("editar-nombre").value = socio.nombre;
     document.getElementById("editar-ci").value = socio.ci;
@@ -697,7 +736,7 @@ function mostrarPagos(socio) {
             <tr>
                 <td>${escaparHtml(formatearFecha(pago.fecha))}</td>
                 <td>${escaparHtml(pago.plan)}</td>
-                <td>${pago.monto}</td>
+                <td>${formatearMoneda(pago.monto)}</td>
                 <td>${pago.dias_plan} + ${pago.dias_restantes}</td>
                 <td>${escaparHtml(formatearFecha(pago.vencimiento_nuevo))}</td>
             </tr>`;
@@ -709,7 +748,7 @@ function mostrarAuditoria(socio) {
     const tabla = document.getElementById("tabla-auditoria");
     tabla.innerHTML = "";
     if (socio.auditoria.length === 0) {
-        tabla.innerHTML = '<tr><td colspan="5">Sin cambios de plan o vencimiento</td></tr>';
+        tabla.innerHTML = filaVacia(5, "Todavía no hubo cambios de plan o vencimiento");
     }
     for (const cambio of socio.auditoria) {
         tabla.innerHTML += `
@@ -748,7 +787,7 @@ function mostrarSeguimiento(socio) {
     const tabla = document.getElementById("tabla-entradas");
     tabla.innerHTML = "";
     if (seguimiento.entradas.length === 0) {
-        tabla.innerHTML = '<tr><td colspan="3">Sin entradas en los últimos 28 días</td></tr>';
+        tabla.innerHTML = filaVacia(3, "No entró en los últimos 28 días");
     }
     for (const entrada of seguimiento.entradas) {
         tabla.innerHTML += `

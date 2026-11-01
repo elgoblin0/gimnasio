@@ -91,9 +91,10 @@ gimnasio/
 ├── tests/             ← pruebas de las reglas
 └── static/
     ├── login.html     ← entrada al sistema
-    ├── index.html     ← búsqueda de socios, check-in, alta y precios
-    ├── socio.html     ← ficha: IMC, rutina, progreso, pagos, auditoría, renovar
-    ├── dashboard.html ← totales, listas por estado y socios en riesgo
+    ├── index.html     ← búsqueda de socios, entrada/salida y alta
+    ├── socio.html     ← ficha en pestañas: resumen, rutina, progreso y pagos, editar y eliminar
+    ├── dashboard.html ← ocupación ahora, gráficos, socios en riesgo y listas por estado
+    ├── planes.html    ← precios de los planes (solo administrador)
     ├── usuarios.html  ← listado y alta de usuarios (solo administrador)
     ├── app.js         ← llamadas a la API (fetch)
     └── estilos.css
