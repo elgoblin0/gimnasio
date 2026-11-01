@@ -185,7 +185,7 @@ CREATE TRIGGER auditar_plan_socio AFTER UPDATE ON socios
 FOR EACH ROW
     INSERT INTO auditoria_socios
         (socio_id, plan_anterior, plan_nuevo, vencimiento_anterior, vencimiento_nuevo)
-    SELECT NEW.id, OLD.plan_id, NEW.plan_id, OLD.fecha_vencimiento, NEW.fecha_vencimiento
+    SELECT NEW.id, OLD.plan_id, NEW.plan_id, OLD.fecha_vencimiento, NEW.fecha_vencimiento FROM DUAL
     WHERE NOT (OLD.plan_id <=> NEW.plan_id)
        OR NOT (OLD.fecha_vencimiento <=> NEW.fecha_vencimiento);
 
