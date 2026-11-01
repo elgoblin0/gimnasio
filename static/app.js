@@ -19,6 +19,14 @@ async function llamarApi(url, metodo = "GET", datos = null) {
         opciones.body = JSON.stringify(datos);
     }
     const respuesta = await fetch(url, opciones);
+
+    // Sin sesión: se va al login. La promesa queda sin resolver porque la página se está yendo.
+    // En el propio login, un 401 significa que la contraseña es incorrecta.
+    if (respuesta.status === 401 && url !== "/api/login") {
+        window.location.href = "login.html";
+        return new Promise(() => {});
+    }
+
     const json = await respuesta.json();
     return { ok: respuesta.ok, datos: json };
 }
@@ -81,6 +89,94 @@ async function cargarPlanes(idSelect, planElegido) {
 
 
 // ---------------------------------------------
+// LOGIN Y USUARIOS (regla 15)
+// ---------------------------------------------
+
+// Iniciar sesión y entrar al sistema
+async function iniciarSesion(evento) {
+    evento.preventDefault();
+    const datos = {
+        usuario: document.getElementById("usuario").value,
+        clave: document.getElementById("clave").value,
+    };
+    const resultado = await llamarApi("/api/login", "POST", datos);
+    if (resultado.ok) {
+        window.location.href = "index.html";
+    } else {
+        mostrarResultado(resultado);
+    }
+}
+
+// Cerrar sesión y volver al login
+async function cerrarSesion() {
+    await llamarApi("/api/logout", "POST");
+    window.location.href = "login.html";
+}
+
+// Muestra quién entró. La clase del rol oculta lo que ese rol no puede usar:
+// es solo para no mostrarlo, quien lo hace cumplir es la API.
+async function mostrarSesion() {
+    const resultado = await llamarApi("/api/sesion");
+    const usuario = resultado.datos;
+    document.body.classList.add("rol-" + usuario.rol);
+    document.getElementById("sesion").innerHTML = `
+        ${escaparHtml(usuario.nombre)} (${escaparHtml(usuario.rol)})
+        <button onclick="cerrarSesion()">Salir</button>`;
+}
+
+// Carga el listado de usuarios
+async function cargarUsuarios() {
+    const resultado = await llamarApi("/api/usuarios");
+    if (!resultado.ok) {
+        mostrarResultado(resultado);
+        return;
+    }
+    const tabla = document.getElementById("tabla-usuarios");
+    tabla.innerHTML = "";
+    for (const usuario of resultado.datos) {
+        let estado = "Inactivo";
+        let accion = "Activar";
+        if (usuario.activo) {
+            estado = "Activo";
+            accion = "Desactivar";
+        }
+        tabla.innerHTML += `
+            <tr>
+                <td>${escaparHtml(usuario.nombre)}</td>
+                <td>${escaparHtml(usuario.usuario)}</td>
+                <td>${escaparHtml(usuario.rol)}</td>
+                <td>${estado}</td>
+                <td><button onclick="cambiarActivo(${usuario.id}, ${!usuario.activo})">${accion}</button></td>
+            </tr>`;
+    }
+}
+
+// Crear un usuario nuevo
+async function crearUsuario(evento) {
+    evento.preventDefault();
+    const datos = {
+        nombre: document.getElementById("usuario-nombre").value,
+        usuario: document.getElementById("usuario-usuario").value,
+        clave: document.getElementById("usuario-clave").value,
+        rol: document.getElementById("usuario-rol").value,
+    };
+    const resultado = await llamarApi("/api/usuarios", "POST", datos);
+    mostrarResultado(resultado);
+    if (resultado.ok) {
+        document.getElementById("form-usuario").reset();
+        cargarUsuarios();
+    }
+}
+
+// Activar o desactivar un usuario
+async function cambiarActivo(id, activo) {
+    const resultado = await llamarApi("/api/usuarios/" + id, "PATCH", { activo: activo });
+    mostrarResultado(resultado);
+    cargarUsuarios();
+}
+
+
+// ---------------------------------------------
 // PÁGINA DE SOCIOS (index.html)
 // ---------------------------------------------
 
@@ -105,7 +201,7 @@ async function cargarSocios() {
                 <td class="acciones">
                     <button onclick="hacerEntrada(${socio.id})">Entrada</button>
                     <a class="boton" href="socio.html?id=${socio.id}">Ver ficha</a>
-                    <button class="boton-eliminar" onclick="eliminarSocio(${socio.id})">Eliminar</button>
+                    <button class="boton-eliminar solo-admin" onclick="eliminarSocio(${socio.id})">Eliminar</button>
                 </td>
             </tr>`;
     }

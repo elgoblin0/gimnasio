@@ -9,6 +9,8 @@
 <body>
     <header>
         <h1>GIMNASIO</h1>
+        <a class="solo-admin" href="usuarios.html">Usuarios</a>
+        <div id="sesion"></div>
     </header>
 
     <main>
@@ -38,7 +40,7 @@
             </div>
         </section>
 
-        <section>
+        <section class="solo-admin">
             <h2>Precios de los planes</h2>
             <div class="tabla-scroll">
                 <table>
@@ -91,7 +93,8 @@
 
     <script src="app.js"></script>
     <script>
-        // Al abrir la página: cargar la tabla y los planes del desplegable
+        // Al abrir la página: mostrar la sesión, y cargar la tabla y los planes del desplegable
+        mostrarSesion();
         cargarSocios();
         cargarPlanes("plan", null);
         cargarPrecios();

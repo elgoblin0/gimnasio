@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gimnasio - Usuarios</title>
+    <link rel="stylesheet" href="estilos.css">
+</head>
+<body>
+    <header>
+        <a href="index.html">&larr; Volver</a>
+        <h1>Usuarios</h1>
+        <div id="sesion"></div>
+    </header>
+
+    <main>
+        <!-- Aquí aparecen los mensajes de éxito o error -->
+        <div id="mensaje"></div>
+
+        <section>
+            <h2>Listado</h2>
+            <div class="tabla-scroll">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nombre</th>
+                            <th>Usuario</th>
+                            <th>Rol</th>
+                            <th>Estado</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <!-- Las filas las rellena cargarUsuarios() en app.js -->
+                    <tbody id="tabla-usuarios"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section>
+            <h2>Nuevo usuario</h2>
+            <form id="form-usuario" onsubmit="crearUsuario(event)">
+                <div class="campos">
+                    <label>Nombre <input id="usuario-nombre" required></label>
+                    <label>Usuario <input id="usuario-usuario" required></label>
+                    <label>Contraseña (8 o más caracteres)
+                        <input id="usuario-clave" type="password" autocomplete="new-password" required>
+                    </label>
+                    <label>Rol
+                        <select id="usuario-rol">
+                            <option value="recepcion">Recepción</option>
+                            <option value="admin">Administrador</option>
+                        </select>
+                    </label>
+                </div>
+                <button type="submit">Crear usuario</button>
+            </form>
+        </section>
+    </main>
+
+    <script src="app.js"></script>
+    <script>
+        // Al abrir la página: mostrar la sesión y cargar el listado
+        mostrarSesion();
+        cargarUsuarios();
+    </script>
+</body>
+</html>

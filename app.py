@@ -6,15 +6,29 @@
 
 import math
 import os
+import secrets
 from contextlib import contextmanager
 from datetime import date, timedelta
+from functools import wraps
 
 import mysql.connector
-from flask import Flask, jsonify, request
+from flask import Flask, g, jsonify, request, session
+from werkzeug.security import check_password_hash, generate_password_hash
 
 # static_url_path="" hace que los archivos de static/ se sirvan desde la raíz
 # (ej: http://localhost:5001/socio.html)
 app = Flask(__name__, static_folder="static", static_url_path="")
+
+# La clave firma la cookie de sesión. Si no está la variable de entorno, se genera
+# una al azar al arrancar: nunca queda en el repositorio, pero las sesiones se pierden al reiniciar.
+app.secret_key = os.environ.get("GIMNASIO_SECRET_KEY") or secrets.token_hex(32)
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+
+# Usuarios (REGLA 15)
+ROLES = ("admin", "recepcion")
+CLAVE_MINIMA = 8
+LARGO_MAXIMO_USUARIO = {"nombre": 100, "usuario": 50}
 
 # Valores permitidos y límites de los datos de un socio
 OBJETIVOS = ("bajar peso", "ganar musculo", "mantenerse")
@@ -420,6 +434,41 @@ def guardar_pago(cursor, socio_id, plan, dias_restantes, vencimiento_nuevo):
 
 
 # ---------------------------------------------
+# LOGIN Y PERMISOS (REGLA 15)
+# ---------------------------------------------
+
+# Toda ruta /api/ necesita sesión, salvo el login.
+# El usuario se busca en cada pedido: si lo desactivan, pierde el acceso enseguida.
+@app.before_request
+def exigir_sesion():
+    if not request.path.startswith("/api/") or request.path == "/api/login":
+        return None
+
+    usuario = None
+    if "usuario_id" in session:
+        usuario = consultar_uno(
+            "SELECT id, nombre, usuario, rol FROM usuarios WHERE id = %s AND activo = 1",
+            (session["usuario_id"],),
+        )
+    if usuario is None:
+        session.clear()
+        return error("Hay que iniciar sesión", 401)
+
+    g.usuario = usuario
+    return None
+
+
+# Se pone sobre las rutas que solo puede usar el administrador
+def solo_admin(ruta):
+    @wraps(ruta)
+    def ruta_protegida(*args, **kwargs):
+        if g.usuario["rol"] != "admin":
+            return error("No tienes permiso para hacer esto", 403)
+        return ruta(*args, **kwargs)
+    return ruta_protegida
+
+
+# ---------------------------------------------
 # PÁGINA PRINCIPAL
 # ---------------------------------------------
 
@@ -443,6 +492,7 @@ def listar_planes():
 
 # Cambiar el precio de un plan
 @app.route("/api/planes/<int:plan_id>", methods=["PUT"])
+@solo_admin
 def cambiar_precio(plan_id):
     datos = leer_json()
 
@@ -535,6 +585,7 @@ def crear_socio():
 
 # 4. Eliminar un socio
 @app.route("/api/socios/<int:socio_id>", methods=["DELETE"])
+@solo_admin
 def eliminar_socio(socio_id):
     if not socio_existe(socio_id):
         return error("El socio no existe", 404)
@@ -895,6 +946,102 @@ def subir_nivel(socio_id):
 
     ejecutar("UPDATE socios SET nivel = %s WHERE id = %s", (nivel_nuevo, socio_id))
     return jsonify({"mensaje": "Nivel actualizado a " + nivel_nuevo})
+
+
+# 15. Iniciar sesión (REGLA 15): el mismo mensaje para cualquier fallo
+@app.route("/api/login", methods=["POST"])
+def iniciar_sesion():
+    datos = leer_json()
+    nombre_usuario = datos.get("usuario")
+    clave = datos.get("clave")
+
+    usuario = None
+    if isinstance(nombre_usuario, str) and isinstance(clave, str):
+        usuario = consultar_uno(
+            "SELECT id, clave_hash FROM usuarios WHERE usuario = %s AND activo = 1",
+            (nombre_usuario,),
+        )
+    if usuario is None or not check_password_hash(usuario["clave_hash"], clave):
+        return error("Usuario o contraseña incorrectos", 401)
+
+    session.clear()
+    session["usuario_id"] = usuario["id"]
+    return jsonify({"mensaje": "Sesión iniciada"})
+
+
+# 16. Cerrar sesión
+@app.route("/api/logout", methods=["POST"])
+def cerrar_sesion():
+    session.clear()
+    return jsonify({"mensaje": "Sesión cerrada"})
+
+
+# 17. Quién tiene la sesión abierta
+@app.route("/api/sesion")
+def ver_sesion():
+    return jsonify(g.usuario)
+
+
+# 18. Listado de usuarios
+@app.route("/api/usuarios")
+@solo_admin
+def listar_usuarios():
+    usuarios = consultar("SELECT id, nombre, usuario, rol, activo FROM usuarios ORDER BY nombre")
+    for usuario in usuarios:
+        usuario["activo"] = bool(usuario["activo"])
+    return jsonify(usuarios)
+
+
+# 19. Crear un usuario
+@app.route("/api/usuarios", methods=["POST"])
+@solo_admin
+def crear_usuario():
+    datos = leer_json()
+
+    for campo, largo in LARGO_MAXIMO_USUARIO.items():
+        valor = datos.get(campo)
+        if not isinstance(valor, str) or valor.strip() == "":
+            return error("Falta el campo: " + campo)
+        if len(valor) > largo:
+            return error("El campo " + campo + " admite hasta " + str(largo) + " caracteres")
+
+    clave = datos.get("clave")
+    if not isinstance(clave, str) or len(clave) < CLAVE_MINIMA:
+        return error("La contraseña debe tener al menos " + str(CLAVE_MINIMA) + " caracteres")
+
+    if datos.get("rol") not in ROLES:
+        return error("El rol no es válido")
+
+    try:
+        ejecutar(
+            "INSERT INTO usuarios (nombre, usuario, clave_hash, rol) VALUES (%s, %s, %s, %s)",
+            (datos["nombre"], datos["usuario"], generate_password_hash(clave), datos["rol"]),
+        )
+    except mysql.connector.IntegrityError:
+        return error("Ya existe un usuario con ese nombre de usuario")
+    return jsonify({"mensaje": "Usuario creado"})
+
+
+# 20. Activar o desactivar un usuario
+@app.route("/api/usuarios/<int:usuario_id>", methods=["PATCH"])
+@solo_admin
+def cambiar_activo(usuario_id):
+    datos = leer_json()
+
+    activo = datos.get("activo")
+    if not isinstance(activo, bool):
+        return error("El campo activo debe ser verdadero o falso")
+
+    if consultar_uno("SELECT id FROM usuarios WHERE id = %s", (usuario_id,)) is None:
+        return error("El usuario no existe", 404)
+
+    if usuario_id == g.usuario["id"] and not activo:
+        return error("No puedes desactivar tu propio usuario")
+
+    ejecutar("UPDATE usuarios SET activo = %s WHERE id = %s", (activo, usuario_id))
+    if activo:
+        return jsonify({"mensaje": "Usuario activado"})
+    return jsonify({"mensaje": "Usuario desactivado"})
 
 
 # 9. Registrar un nuevo peso

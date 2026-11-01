@@ -1,6 +1,6 @@
 # Sistema de gimnasio
 
-Proyecto de la facultad: gestión de socios de un gimnasio. Permite dar de alta socios, registrar sus entradas (check-in), renovar planes, registrar sus pagos y seguir su peso, IMC y rutina.
+Proyecto de la facultad: gestión de socios de un gimnasio. Permite dar de alta socios, registrar sus entradas (check-in), renovar planes, registrar sus pagos y seguir su peso, IMC y rutina. Se entra con usuario y contraseña, con permisos según el rol.
 
 **Stack:** XAMPP (MySQL/MariaDB) + Python Flask (backend) + JavaScript (frontend).
 
@@ -41,13 +41,22 @@ Proyecto de la facultad: gestión de socios de un gimnasio. Permite dar de alta 
    ```
    python3 app.py
    ```
-6. Abrir `http://localhost:5001` en el navegador.
+6. Abrir `http://localhost:5001` en el navegador y entrar con un usuario de ejemplo:
+
+   | Usuario | Contraseña | Rol |
+   |---|---|---|
+   | `admin` | `admin1234` | Administrador |
+   | `recepcion` | `recepcion1234` | Recepción |
+
+   Estas claves son solo de prueba y están en el repositorio: no se usan fuera de este proyecto.
 
 > En Windows puede que los comandos sean `pip` y `python` en vez de `pip3` y `python3`.
 
 Para parar el servidor: `Ctrl + C` en la terminal.
 
 Para programar con recarga automática y mensajes de error detallados, arranca el servidor con la variable de entorno `GIMNASIO_DEBUG=1`. Sin ella, el modo debug queda apagado.
+
+Las sesiones se firman con la variable de entorno `GIMNASIO_SECRET_KEY`. Si no está, se genera una clave al azar al arrancar, y al reiniciar el servidor hay que volver a entrar. Nunca se sube al repositorio.
 
 ## Pruebas
 
@@ -67,8 +76,10 @@ gimnasio/
 ├── migraciones/       ← cambios para una base ya creada
 ├── tests/             ← pruebas de las reglas
 └── static/
-    ├── index.html     ← lista de socios, check-in y alta
-    ├── socio.html     ← ficha: IMC, rutina, progreso, renovar
+    ├── login.html     ← entrada al sistema
+    ├── index.html     ← lista de socios, check-in, alta y precios
+    ├── socio.html     ← ficha: IMC, rutina, progreso, pagos, renovar
+    ├── usuarios.html  ← listado y alta de usuarios (solo administrador)
     ├── app.js         ← llamadas a la API (fetch)
     └── estilos.css
 ```
@@ -77,6 +88,7 @@ gimnasio/
 
 | Tabla | Qué guarda |
 |---|---|
+| `usuarios` | Quienes entran al sistema: usuario, contraseña con hash, rol y si está activo. |
 | `planes` | Nombre, duración en días, cuántos días por semana se puede entrar (7 = libre) y precio. |
 | `rutinas` | Una rutina por cada combinación de objetivo + nivel. |
 | `rutina_ejercicios` | Los ejercicios de cada rutina: 3 días con 3 ejercicios cada uno. |
@@ -106,6 +118,7 @@ Todas están en `app.py`.
 | 12 | Cumplimiento: ejercicios hechos / asignados en los últimos 28 días, solo con la rutina actual. |
 | 13 | Asistencia: entradas de los últimos 28 días / (días por semana × 4), con un máximo de 100%. Un plan libre cuenta como 3 días por semana. |
 | 14 | Subir de nivel: se sugiere con 8 entradas o más en 28 días y 80% o más de cumplimiento, salvo en avanzado. Lo confirma una persona. |
+| 15 | Acceso: sin sesión, la API responde 401. Recepción no puede eliminar socios, cambiar precios ni gestionar usuarios, y la API responde 403. Un administrador no puede desactivarse a sí mismo. |
 
 ## Cómo probar las reglas con los datos de ejemplo
 
@@ -137,18 +150,27 @@ Si ya tenías la base creada y no quieres perder los datos, en vez de reimportar
 | `migraciones/003_pagos.sql` | Agrega el precio de los planes y la tabla de pagos. Se puede repetir sin problema. |
 | `migraciones/005_cancelar_congelar.sql` | Agrega la fecha de cancelación y la tabla de congelamientos. Se puede repetir sin problema. |
 | `migraciones/006_rutina_por_dia.sql` | Agrega los ejercicios por día y lo que hizo cada socio. Las entradas anteriores quedan sin rutina. Se puede repetir sin problema. |
+| `migraciones/007_usuarios.sql` | Agrega los usuarios, con los dos de ejemplo. Se puede repetir sin problema. |
 
 ## API (lo que llama `app.js`)
 
+Toda ruta pide sesión, salvo el login. Las marcadas con (admin) son solo para el administrador.
+
 | Método | Ruta | Qué hace |
 |---|---|---|
+| POST | `/api/login` | Iniciar sesión |
+| POST | `/api/logout` | Cerrar sesión |
+| GET | `/api/sesion` | Quién tiene la sesión abierta |
+| GET | `/api/usuarios` | Listado de usuarios (admin) |
+| POST | `/api/usuarios` | Crear un usuario (admin) |
+| PATCH | `/api/usuarios/<id>` | Activar o desactivar un usuario (admin) |
 | GET | `/api/planes` | Lista de planes |
-| PUT | `/api/planes/<id>` | Cambiar el precio de un plan |
+| PUT | `/api/planes/<id>` | Cambiar el precio de un plan (admin) |
 | GET | `/api/socios` | Lista de socios con su estado. Oculta a los cancelados, salvo con `?estado=Cancelado` |
 | POST | `/api/socios` | Alta de socio |
 | GET | `/api/socios/<id>` | Ficha completa (IMC, rutina, progreso, historial, pagos) |
 | PUT | `/api/socios/<id>` | Editar nombre, CI, teléfono, altura, objetivo y nivel |
-| DELETE | `/api/socios/<id>` | Eliminar socio |
+| DELETE | `/api/socios/<id>` | Eliminar socio (admin) |
 | POST | `/api/socios/<id>/checkin` | Registrar una entrada |
 | POST | `/api/socios/<id>/renovar` | Renovar o cambiar de plan, registrando el pago |
 | POST | `/api/socios/<id>/peso` | Registrar un peso nuevo |
