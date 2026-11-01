@@ -252,6 +252,85 @@ class TestRutas(unittest.TestCase):
                 self.assertEqual(respuesta.get_json()["error"], "Falta el campo: nombre")
 
 
+class TestBusqueda(unittest.TestCase):  # T2: sesión simulada, sin MySQL
+    def setUp(self):
+        self.cliente = gimnasio.app.test_client()
+        with self.cliente.session_transaction() as sesion:
+            sesion["usuario_id"] = 1
+        admin = {"id": 1, "nombre": "Admin", "usuario": "admin", "rol": "admin"}
+        simulacion = patch.object(gimnasio, "consultar_uno", return_value=admin)
+        simulacion.start()
+        self.addCleanup(simulacion.stop)
+        self.socios = []
+        casos = [(20, None, False), (7, None, False), (-1, None, False),
+                 (-1, None, True), (20, date.today(), True)]
+        for i, (dias, cancelacion, congelado) in enumerate(casos, 1):
+            self.socios.append({
+                "id": i, "nombre": "Ana " + str(i), "ci": str(i), "plan": "Mensual",
+                "fecha_vencimiento": dias_desde_hoy(dias),
+                "fecha_cancelacion": cancelacion, "congelado": congelado,
+            })
+
+    def test_sin_filtros_oculta_solo_cancelados(self):
+        with patch.object(gimnasio, "consultar", return_value=self.socios):
+            respuesta = self.cliente.get("/api/socios")
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual([s["id"] for s in respuesta.get_json()], [1, 2, 3, 4])
+
+    def test_cada_estado_y_su_prioridad(self):
+        for i, estado in enumerate(["Activo", "Por vencer", "Vencido", "Congelado", "Cancelado"], 1):
+            with self.subTest(estado=estado):
+                with patch.object(gimnasio, "consultar", return_value=self.socios):
+                    respuesta = self.cliente.get("/api/socios", query_string={"estado": estado})
+                self.assertEqual(respuesta.status_code, 200)
+                self.assertEqual([s["id"] for s in respuesta.get_json()], [i])
+                self.assertEqual(respuesta.get_json()[0]["estado"], estado)
+
+    def test_estado_desconocido_o_vacio_devuelve_400_sin_listar(self):
+        for estado in ["", "activo", "Todos", "No existe"]:
+            with self.subTest(estado=estado):
+                with patch.object(gimnasio, "consultar") as consulta:
+                    respuesta = self.cliente.get("/api/socios", query_string={"estado": estado})
+                self.assertEqual(respuesta.status_code, 400)
+                self.assertEqual(respuesta.get_json()["error"], "El estado no es válido")
+                consulta.assert_not_called()
+
+    def test_busqueda_parametrizada_por_nombre_o_ci(self):
+        for texto in ["Ana", "123", "' OR 1=1 --"]:
+            with self.subTest(texto=texto):
+                with patch.object(gimnasio, "consultar", return_value=[]) as consulta:
+                    respuesta = self.cliente.get("/api/socios", query_string={"q": texto})
+                self.assertEqual(respuesta.get_json(), [])
+                sql, parametros = consulta.call_args.args
+                self.assertIn("s.nombre LIKE %s ESCAPE '!' OR s.ci LIKE %s ESCAPE '!'", sql)
+                self.assertNotIn(texto, sql)
+                self.assertEqual(parametros, ("%" + texto + "%", "%" + texto + "%"))
+
+    def test_comodines_y_escape_se_buscan_como_texto(self):
+        for texto, patron in [("%", "%!%%"), ("_", "%!_%"), ("!", "%!!%"),
+                              ("a!%_", "%a!!!%!_%"), (r"a\b", r"%a\b%")]:
+            with self.subTest(texto=texto):
+                with patch.object(gimnasio, "consultar", return_value=[]) as consulta:
+                    self.cliente.get("/api/socios", query_string={"q": texto})
+                self.assertEqual(consulta.call_args.args[1], (patron, patron))
+
+    def test_busqueda_y_estado_se_combinan(self):
+        # consultar devuelve las coincidencias de texto; el estado se calcula después.
+        with patch.object(gimnasio, "consultar", return_value=self.socios[2:]) as consulta:
+            respuesta = self.cliente.get("/api/socios", query_string={"q": "Ana", "estado": "Vencido"})
+        self.assertEqual(consulta.call_args.args[1], ("%Ana%", "%Ana%"))
+        self.assertEqual([s["id"] for s in respuesta.get_json()], [3])
+
+    def test_texto_vacio_equivale_a_sin_busqueda(self):
+        for texto in ["", "   "]:
+            with self.subTest(texto=texto):
+                with patch.object(gimnasio, "consultar", return_value=self.socios) as consulta:
+                    respuesta = self.cliente.get("/api/socios", query_string={"q": texto})
+                self.assertEqual(len(respuesta.get_json()), 4)
+                self.assertEqual(consulta.call_args.args[1], ())
+                self.assertNotIn("LIKE", consulta.call_args.args[0])
+
+
 class TestPermisos(unittest.TestCase):  # REGLA 15
     def cliente_con_rol(self, rol):
         cliente = gimnasio.app.test_client()

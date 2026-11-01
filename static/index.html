@@ -19,9 +19,23 @@
 
         <section>
             <h2>Socios</h2>
-            <label class="casilla">
-                <input id="ver-cancelados" type="checkbox" onchange="cargarSocios()"> Ver solo cancelados
-            </label>
+            <form id="form-busqueda" onsubmit="buscarSocios(event)">
+                <div class="campos">
+                    <label>Nombre o CI <input id="busqueda" type="search"></label>
+                    <label>Estado
+                        <select id="estado-busqueda">
+                            <option value="">Todos excepto cancelados</option>
+                            <option>Activo</option>
+                            <option>Por vencer</option>
+                            <option>Vencido</option>
+                            <option>Congelado</option>
+                            <option>Cancelado</option>
+                        </select>
+                    </label>
+                </div>
+                <button type="submit">Buscar</button>
+                <button type="button" onclick="limpiarBusqueda()">Limpiar</button>
+            </form>
             <div class="tabla-scroll">
                 <table>
                     <thead>

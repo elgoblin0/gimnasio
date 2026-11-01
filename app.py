@@ -510,19 +510,37 @@ def cambiar_precio(plan_id):
 # 2. Lista de socios con su estado
 @app.route("/api/socios")
 def listar_socios():
+    texto = request.args.get("q", "").strip()
+    filtro_estado = request.args.get("estado")
+    estados = ("Activo", "Por vencer", "Vencido", "Congelado", "Cancelado")
+    if filtro_estado is not None and filtro_estado not in estados:
+        return error("El estado no es válido")
+
+    condicion = ""
+    parametros = ()
+    if texto:
+        # ! es el escape de LIKE: %, _ y el propio ! se buscan como texto.
+        texto = texto.replace("!", "!!").replace("%", "!%").replace("_", "!_")
+        patron = "%" + texto + "%"
+        condicion = "WHERE (s.nombre LIKE %s ESCAPE '!' OR s.ci LIKE %s ESCAPE '!') "
+        parametros = (patron, patron)
+
     socios = consultar(
         "SELECT s.id, s.nombre, s.ci, p.nombre AS plan, s.fecha_vencimiento, s.fecha_cancelacion, "
         + SQL_CONGELADO +
         " FROM socios s JOIN planes p ON s.plan_id = p.id "
-        "ORDER BY s.nombre"
+        + condicion + "ORDER BY s.nombre",
+        parametros,
     )
 
     # REGLA 8: los cancelados solo se muestran si se piden con ?estado=Cancelado
-    ver_cancelados = request.args.get("estado") == "Cancelado"
     resultado = []
     for socio in socios:
         estado = estado_del_socio(socio)
-        if (estado == "Cancelado") != ver_cancelados:
+        if filtro_estado is not None:
+            if estado != filtro_estado:
+                continue
+        elif estado == "Cancelado":
             continue
         resultado.append({
             "id": socio["id"],

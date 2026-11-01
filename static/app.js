@@ -180,16 +180,35 @@ async function cambiarActivo(id, activo) {
 // PÁGINA DE SOCIOS (index.html)
 // ---------------------------------------------
 
-// Carga la tabla de socios
+// Buscar también funciona al pulsar Enter en el formulario.
+function buscarSocios(evento) {
+    evento.preventDefault();
+    cargarSocios();
+}
+
+function limpiarBusqueda() {
+    document.getElementById("form-busqueda").reset();
+    cargarSocios();
+}
+
+// Carga la tabla usando los filtros actuales, también después de un alta o check-in.
 async function cargarSocios() {
-    // Los cancelados solo se ven si se marca la casilla (regla 8)
-    let url = "/api/socios";
-    if (document.getElementById("ver-cancelados").checked) {
-        url += "?estado=Cancelado";
+    const parametros = new URLSearchParams();
+    const texto = document.getElementById("busqueda").value.trim();
+    const estado = document.getElementById("estado-busqueda").value;
+    if (texto) parametros.set("q", texto);
+    if (estado) parametros.set("estado", estado);
+    const resultado = await llamarApi("/api/socios?" + parametros.toString());
+    if (!resultado.ok) {
+        mostrarResultado(resultado);
+        return;
     }
-    const resultado = await llamarApi(url);
     const tabla = document.getElementById("tabla-socios");
     tabla.innerHTML = "";
+    if (resultado.datos.length === 0) {
+        tabla.innerHTML = '<tr><td colspan="6">No se encontraron socios</td></tr>';
+        return;
+    }
     for (const socio of resultado.datos) {
         tabla.innerHTML += `
             <tr>
