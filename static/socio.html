@@ -30,10 +30,20 @@
                 <p><span id="plan"></span></p>
                 <p>Vence: <span id="vencimiento"></span></p>
                 <p>Entradas últimos 7 días: <span id="entradas"></span></p>
-                <label>Renovar con
-                    <select id="plan-renovar"></select>
-                </label>
-                <button onclick="renovar()">Renovar</button>
+                <div id="acciones-renovar">
+                    <label>Renovar con
+                        <select id="plan-renovar"></select>
+                    </label>
+                    <button onclick="renovar()">Renovar</button>
+                </div>
+                <div id="acciones-congelar">
+                    <label>Congelar (1 a 30 días)
+                        <input id="dias-congelar" type="number" min="1" max="30" value="7">
+                    </label>
+                    <button onclick="congelarPlan()">Congelar</button>
+                </div>
+                <button id="boton-descongelar" onclick="descongelarPlan()">Descongelar</button>
+                <button id="boton-cancelar" class="boton-eliminar" onclick="cancelarSocio()">Cancelar socio</button>
             </section>
 
             <section>

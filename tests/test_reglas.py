@@ -69,6 +69,27 @@ class TestEstado(unittest.TestCase):  # REGLA 2
                 self.assertEqual(gimnasio.calcular_estado(dias_desde_hoy(dias)), esperado)
 
 
+class TestEstadoCanceladoYCongelado(unittest.TestCase):  # REGLAS 2, 8 y 9
+    def test_el_cancelado_tiene_prioridad(self):
+        self.assertEqual(
+            gimnasio.calcular_estado(dias_desde_hoy(20), date.today(), True), "Cancelado"
+        )
+
+    def test_el_congelado_va_antes_que_vencido(self):
+        self.assertEqual(gimnasio.calcular_estado(dias_desde_hoy(-1), None, True), "Congelado")
+
+    def test_sin_cancelar_ni_congelar_sigue_por_fechas(self):
+        self.assertEqual(gimnasio.calcular_estado(dias_desde_hoy(20), None, False), "Activo")
+
+
+class TestDiasNoUsados(unittest.TestCase):  # REGLA 9
+    def test_casos(self):
+        casos = [(dias_desde_hoy(5), 5), (date.today(), 0), (dias_desde_hoy(-2), 0)]
+        for fecha, esperado in casos:
+            with self.subTest(fecha=fecha):
+                self.assertEqual(gimnasio.calcular_dias_no_usados(fecha), esperado)
+
+
 class TestImc(unittest.TestCase):  # REGLA 4
     def test_limites_de_categoria(self):
         # Con altura 1 m, el IMC es igual al peso

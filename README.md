@@ -83,6 +83,7 @@ gimnasio/
 | `asistencias` | Una fila por cada entrada al gimnasio. |
 | `registros_peso` | Historial de peso para ver el progreso. |
 | `pagos` | Una fila por cada pago: monto, días del plan y días que le quedaban al socio. |
+| `congelamientos` | Una fila por cada vez que un socio congela su plan, con su inicio y su fin. |
 
 ## Reglas del gimnasio (la lógica que se evalúa)
 
@@ -91,12 +92,14 @@ Todas están en `app.py`.
 | # | Regla |
 |---|---|
 | 1 | Al dar de alta o renovar se calcula el vencimiento. Si sigue activo, se suma a lo que le queda; si no, desde hoy. |
-| 2 | Estado del socio: Vencido / Por vencer (7 días o menos) / Activo. |
-| 3 | Check-in: se rechaza si el plan está vencido, si ya entró hoy o si ya usó sus días por semana (últimos 7 días). La base de datos también impide dos entradas el mismo día. |
+| 2 | Estado del socio, en este orden: Cancelado / Congelado / Vencido / Por vencer (7 días o menos) / Activo. |
+| 3 | Check-in: se rechaza si el socio está cancelado o congelado, si el plan está vencido, si ya entró hoy o si ya usó sus días por semana (últimos 7 días). La base de datos también impide dos entradas el mismo día. |
 | 4 | IMC = peso / altura², con su categoría. |
 | 5 | Rutina asignada según objetivo + nivel. |
 | 6 | Progreso: primer peso vs último según el objetivo (mantenerse = 2 kg o menos de diferencia). |
 | 7 | Días extra: quien paga antes de vencer recibe los días del plan más los que le quedaban (5 restantes + plan de 30 = vence en 35 días). Cada pago registra ese desglose. |
+| 8 | Cancelar: conserva el historial y oculta al socio de la lista. Si renueva, vuelve con el plan contado desde hoy, sin los días que le quedaban. |
+| 9 | Congelar: de 1 a 30 días, una vez por período, solo con el plan en uso. Los días se suman al vencimiento de inmediato. Si vuelve antes, se restan los no usados. |
 
 ## Cómo probar las reglas con los datos de ejemplo
 
@@ -112,6 +115,8 @@ Las fechas de ejemplo se calculan a partir del día en que se importa el `.sql`,
 | Lucia Rodriguez | Por vencer (2 días). Bajó de 95 a 91 kg: "Va bien". IMC en Obesidad. |
 | Valentina Diaz | Vencida. Quiere mantenerse pero subió 4 kg (48 → 52): "No va bien". IMC en Bajo peso. |
 | Javier Gomez | Plan de 3 días/semana y ya entró 3 veces en los últimos 7 días: el check-in dice "Ya usó sus 3 días de los últimos 7". |
+| Paula Sosa | Cancelada (se ve con "Ver solo cancelados"). Al renovar, el plan cuenta desde hoy, sin sus 10 días restantes. |
+| Martin Silva | Congelado 12 días más. El check-in se rechaza, y al descongelar se restan esos 12 días. |
 
 Si los datos quedan desordenados de tanto probar, se vuelve a importar `base_datos.sql` y listo.
 
@@ -124,6 +129,7 @@ Si ya tenías la base creada y no quieres perder los datos, en vez de reimportar
 | `migraciones/001_dni_a_ci.sql` | Renombra la columna `socios.dni` a `ci` conservando los datos. Se puede repetir sin problema. |
 | `migraciones/002_checkin_unico.sql` | Impide dos entradas del mismo socio el mismo día. Si ya hay duplicados, conserva la entrada más antigua y borra las demás. Se puede repetir sin problema. |
 | `migraciones/003_pagos.sql` | Agrega el precio de los planes y la tabla de pagos. Se puede repetir sin problema. |
+| `migraciones/005_cancelar_congelar.sql` | Agrega la fecha de cancelación y la tabla de congelamientos. Se puede repetir sin problema. |
 
 ## API (lo que llama `app.js`)
 
@@ -131,7 +137,7 @@ Si ya tenías la base creada y no quieres perder los datos, en vez de reimportar
 |---|---|---|
 | GET | `/api/planes` | Lista de planes |
 | PUT | `/api/planes/<id>` | Cambiar el precio de un plan |
-| GET | `/api/socios` | Lista de socios con su estado |
+| GET | `/api/socios` | Lista de socios con su estado. Oculta a los cancelados, salvo con `?estado=Cancelado` |
 | POST | `/api/socios` | Alta de socio |
 | GET | `/api/socios/<id>` | Ficha completa (IMC, rutina, progreso, historial, pagos) |
 | PUT | `/api/socios/<id>` | Editar nombre, CI, teléfono, altura, objetivo y nivel |
@@ -139,6 +145,9 @@ Si ya tenías la base creada y no quieres perder los datos, en vez de reimportar
 | POST | `/api/socios/<id>/checkin` | Registrar una entrada |
 | POST | `/api/socios/<id>/renovar` | Renovar o cambiar de plan, registrando el pago |
 | POST | `/api/socios/<id>/peso` | Registrar un peso nuevo |
+| POST | `/api/socios/<id>/cancelar` | Cancelar un socio |
+| POST | `/api/socios/<id>/congelar` | Congelar el plan unos días |
+| POST | `/api/socios/<id>/descongelar` | Terminar el congelamiento antes de tiempo |
 
 ## Problemas frecuentes
 

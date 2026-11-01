@@ -39,6 +39,7 @@ CREATE TABLE rutinas (
 -- SOCIOS
 -- peso: peso actual en kg
 -- altura: en metros (ej: 1.75)
+-- fecha_cancelacion: NULL mientras el socio no esté cancelado
 -- ---------------------------------------------
 CREATE TABLE socios (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -51,6 +52,7 @@ CREATE TABLE socios (
     nivel VARCHAR(20) NOT NULL,
     plan_id INT NOT NULL,
     fecha_vencimiento DATE NOT NULL,
+    fecha_cancelacion DATE NULL,
     FOREIGN KEY (plan_id) REFERENCES planes(id)
 );
 
@@ -100,6 +102,18 @@ CREATE TABLE pagos (
     FOREIGN KEY (plan_id) REFERENCES planes(id)
 );
 
+-- ---------------------------------------------
+-- CONGELAMIENTOS
+-- El socio está congelado mientras fecha_inicio <= hoy < fecha_fin
+-- ---------------------------------------------
+CREATE TABLE congelamientos (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    socio_id INT NOT NULL,
+    fecha_inicio DATE NOT NULL,
+    fecha_fin DATE NOT NULL,
+    FOREIGN KEY (socio_id) REFERENCES socios(id)
+);
+
 
 -- =============================================
 -- DATOS DE EJEMPLO
@@ -131,7 +145,16 @@ INSERT INTO socios (nombre, ci, telefono, peso, altura, objetivo, nivel, plan_id
 ('Diego Pereira',  '66666666F', '600666666', 81.00, 1.78, 'mantenerse',    'principiante', 2, DATE_ADD(CURDATE(), INTERVAL 15 DAY)),  -- activo
 ('Lucia Rodriguez','77777777G', '600777777', 91.00, 1.70, 'bajar peso',    'intermedio',   1, DATE_ADD(CURDATE(), INTERVAL 2 DAY)),   -- por vencer
 ('Valentina Diaz', '99999999I', '600999999', 52.00, 1.72, 'mantenerse',    'intermedio',   1, DATE_SUB(CURDATE(), INTERVAL 10 DAY)),  -- vencido
-('Javier Gomez',   '10101010J', '601010101', 84.00, 1.82, 'bajar peso',    'avanzado',     2, DATE_ADD(CURDATE(), INTERVAL 25 DAY));  -- activo
+('Javier Gomez',   '10101010J', '601010101', 84.00, 1.82, 'bajar peso',    'avanzado',     2, DATE_ADD(CURDATE(), INTERVAL 25 DAY)),  -- activo
+('Paula Sosa',     '12121212K', '601212121', 63.00, 1.68, 'mantenerse',    'principiante', 1, DATE_ADD(CURDATE(), INTERVAL 10 DAY)),  -- se cancela abajo
+('Martin Silva',   '13131313L', '601313131', 79.00, 1.76, 'ganar musculo', 'principiante', 1, DATE_ADD(CURDATE(), INTERVAL 32 DAY));  -- congelado abajo
+
+-- Paula canceló con 10 días sin usar
+UPDATE socios SET fecha_cancelacion = DATE_SUB(CURDATE(), INTERVAL 5 DAY) WHERE id = 9;
+
+-- Martin congeló 14 días hace 2 días: ya están sumados a su vencimiento
+INSERT INTO congelamientos (socio_id, fecha_inicio, fecha_fin) VALUES
+(10, DATE_SUB(CURDATE(), INTERVAL 2 DAY), DATE_ADD(CURDATE(), INTERVAL 12 DAY));
 
 -- Ana renovó cuando le quedaban 5 días: 30 del plan + 5 restantes
 INSERT INTO pagos (socio_id, plan_id, fecha, monto, dias_plan, dias_restantes, vencimiento_nuevo) VALUES
@@ -143,7 +166,9 @@ INSERT INTO pagos (socio_id, plan_id, fecha, monto, dias_plan, dias_restantes, v
 (5, 2, DATE_SUB(CURDATE(), INTERVAL 15 DAY),  1000.00, 30,  0, DATE_ADD(CURDATE(), INTERVAL 15 DAY)),
 (6, 1, DATE_SUB(CURDATE(), INTERVAL 28 DAY),  1500.00, 30,  0, DATE_ADD(CURDATE(), INTERVAL 2 DAY)),
 (7, 1, DATE_SUB(CURDATE(), INTERVAL 40 DAY),  1500.00, 30,  0, DATE_SUB(CURDATE(), INTERVAL 10 DAY)),
-(8, 2, DATE_SUB(CURDATE(), INTERVAL 5 DAY),   1000.00, 30,  0, DATE_ADD(CURDATE(), INTERVAL 25 DAY));
+(8, 2, DATE_SUB(CURDATE(), INTERVAL 5 DAY),   1000.00, 30,  0, DATE_ADD(CURDATE(), INTERVAL 25 DAY)),
+(9, 1, DATE_SUB(CURDATE(), INTERVAL 20 DAY),  1500.00, 30,  0, DATE_ADD(CURDATE(), INTERVAL 10 DAY)),
+(10, 1, DATE_SUB(CURDATE(), INTERVAL 12 DAY), 1500.00, 30,  0, DATE_ADD(CURDATE(), INTERVAL 18 DAY));
 
 INSERT INTO registros_peso (socio_id, fecha, peso) VALUES
 (1, DATE_SUB(CURDATE(), INTERVAL 60 DAY), 72.00),
@@ -162,7 +187,9 @@ INSERT INTO registros_peso (socio_id, fecha, peso) VALUES
 (7, DATE_SUB(CURDATE(), INTERVAL 40 DAY), 48.00),
 (7, CURDATE(), 52.00),
 (8, DATE_SUB(CURDATE(), INTERVAL 30 DAY), 86.00),
-(8, CURDATE(), 84.00);
+(8, CURDATE(), 84.00),
+(9, DATE_SUB(CURDATE(), INTERVAL 20 DAY), 63.00),
+(10, DATE_SUB(CURDATE(), INTERVAL 12 DAY), 79.00);
 
 -- Carlos (plan 3 dias) ya entro 2 veces esta semana para poder probar el limite
 INSERT INTO asistencias (socio_id, fecha_hora) VALUES

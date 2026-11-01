@@ -86,7 +86,12 @@ async function cargarPlanes(idSelect, planElegido) {
 
 // Carga la tabla de socios
 async function cargarSocios() {
-    const resultado = await llamarApi("/api/socios");
+    // Los cancelados solo se ven si se marca la casilla (regla 8)
+    let url = "/api/socios";
+    if (document.getElementById("ver-cancelados").checked) {
+        url += "?estado=Cancelado";
+    }
+    const resultado = await llamarApi(url);
     const tabla = document.getElementById("tabla-socios");
     tabla.innerHTML = "";
     for (const socio of resultado.datos) {
@@ -235,6 +240,14 @@ function mostrarPlan(socio) {
     document.getElementById("vencimiento").textContent = formatearFecha(socio.fecha_vencimiento);
     document.getElementById("entradas").textContent = socio.entradas_semana + " / " + socio.dias_por_semana;
     cargarPlanes("plan-renovar", socio.plan_id);
+
+    // Cada acción solo aparece cuando el estado la permite (reglas 8 y 9)
+    const enUso = socio.estado === "Activo" || socio.estado === "Por vencer";
+    const congelado = socio.estado === "Congelado";
+    document.getElementById("acciones-congelar").hidden = !enUso;
+    document.getElementById("boton-descongelar").hidden = !congelado;
+    document.getElementById("acciones-renovar").hidden = congelado;
+    document.getElementById("boton-cancelar").hidden = congelado || socio.estado === "Cancelado";
 }
 
 // Peso, altura, IMC (regla 4) y rutina (regla 5)
@@ -322,6 +335,35 @@ async function guardarEdicion(evento) {
 async function renovar() {
     const datos = { plan_id: document.getElementById("plan-renovar").value };
     const resultado = await llamarApi("/api/socios/" + idDeLaUrl() + "/renovar", "POST", datos);
+    mostrarResultado(resultado);
+    cargarFicha();
+}
+
+// Cancelar un socio (regla 8)
+async function cancelarSocio() {
+    const confirmar = confirm(
+        "¿Cancelar este socio? Se conserva su historial. " +
+        "Si vuelve, al renovar el plan contará desde ese día, sin los días que le quedaban."
+    );
+    if (!confirmar) {
+        return;
+    }
+    const resultado = await llamarApi("/api/socios/" + idDeLaUrl() + "/cancelar", "POST");
+    mostrarResultado(resultado);
+    cargarFicha();
+}
+
+// Congelar el plan (regla 9)
+async function congelarPlan() {
+    const datos = { dias: document.getElementById("dias-congelar").value };
+    const resultado = await llamarApi("/api/socios/" + idDeLaUrl() + "/congelar", "POST", datos);
+    mostrarResultado(resultado);
+    cargarFicha();
+}
+
+// Terminar el congelamiento antes de tiempo (regla 9)
+async function descongelarPlan() {
+    const resultado = await llamarApi("/api/socios/" + idDeLaUrl() + "/descongelar", "POST");
     mostrarResultado(resultado);
     cargarFicha();
 }

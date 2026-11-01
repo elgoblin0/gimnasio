@@ -43,6 +43,11 @@ h2 {
     font-size: 18px;
 }
 
+/* El atributo hidden tiene que ganarle al display de botones y etiquetas */
+[hidden] {
+    display: none !important;
+}
+
 /* ---------- Mensajes ---------- */
 
 .mensaje {
@@ -104,6 +109,14 @@ th, td {
     background: #dc3545;
 }
 
+.congelado {
+    background: #17a2b8;
+}
+
+.cancelado {
+    background: #6c757d;
+}
+
 /* ---------- Progreso (regla 6) ---------- */
 
 .va-bien {
@@ -129,6 +142,15 @@ label {
     gap: 4px;
     font-size: 14px;
     margin-bottom: 8px;
+}
+
+label.casilla {
+    flex-direction: row;
+    align-items: center;
+}
+
+#acciones-renovar, #acciones-congelar {
+    margin-bottom: 12px;
 }
 
 input, select {

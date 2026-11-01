@@ -53,6 +53,8 @@ Guía para la presentación oral. Cada indicador de la rúbrica apunta al archiv
 | Pedido | Evidencia |
 |---|---|
 | Días sumados en el pago | Regla 7: `calcular_dias_restantes` y `guardar_pago` en `app.py`, tabla `pagos` en `base_datos.sql`, historial en la ficha (`mostrarPagos` en `app.js`). |
+| Cancelados | Regla 8: `cancelar_socio` en `app.py`, columna `fecha_cancelacion`, estado calculado en `calcular_estado`. |
+| Congelar plan (agregado) | Regla 9: `congelar_plan` y `descongelar_plan` en `app.py`, tabla `congelamientos`. No hace falta una tarea programada, porque el estado sale de comparar fechas. |
 
 ## Funcionamiento y conocimiento del sistema (1 pt)
 

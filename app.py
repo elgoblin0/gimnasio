@@ -26,6 +26,13 @@ PESO_MINIMO = 1
 PESO_MAXIMO = 500
 PRECIO_MINIMO = 0.01
 PRECIO_MAXIMO = 999999.99
+CONGELAMIENTO_MAXIMO = 30
+
+# Columna calculada: 1 si hoy el socio está dentro de un congelamiento (REGLA 9)
+SQL_CONGELADO = (
+    "EXISTS(SELECT 1 FROM congelamientos c WHERE c.socio_id = s.id "
+    "AND c.fecha_inicio <= CURDATE() AND CURDATE() < c.fecha_fin) AS congelado"
+)
 
 
 # ---------------------------------------------
@@ -95,6 +102,15 @@ def error(mensaje, codigo=400):
 
 def socio_existe(socio_id):
     return consultar_uno("SELECT id FROM socios WHERE id = %s", (socio_id,)) is not None
+
+
+# Devuelve los datos necesarios para calcular el estado del socio (o None)
+def buscar_socio(socio_id):
+    return consultar_uno(
+        "SELECT s.id, s.fecha_vencimiento, s.fecha_cancelacion, " + SQL_CONGELADO +
+        " FROM socios s WHERE s.id = %s",
+        (socio_id,),
+    )
 
 
 def leer_json():
@@ -193,14 +209,29 @@ def calcular_dias_restantes(fecha_vencimiento):
     return (fecha_vencimiento - date.today()).days
 
 
-# REGLA 2: estado del socio según los días que le quedan
-def calcular_estado(fecha_vencimiento):
+# REGLA 2: estado del socio
+# Primero cancelado y congelado; si no, según los días que le quedan.
+def calcular_estado(fecha_vencimiento, fecha_cancelacion=None, congelado=False):
+    if fecha_cancelacion is not None:
+        return "Cancelado"
+    if congelado:
+        return "Congelado"
     dias_restantes = (fecha_vencimiento - date.today()).days
     if dias_restantes < 0:
         return "Vencido"
     if dias_restantes <= 7:
         return "Por vencer"
     return "Activo"
+
+
+# Estado de una fila de socio que trae fecha_cancelacion y congelado (SQL_CONGELADO)
+def estado_del_socio(socio):
+    return calcular_estado(socio["fecha_vencimiento"], socio["fecha_cancelacion"], socio["congelado"])
+
+
+# REGLA 9: días de un congelamiento que todavía no se usaron
+def calcular_dias_no_usados(fecha_fin):
+    return max((fecha_fin - date.today()).days, 0)
 
 
 # REGLA 4: IMC = peso / altura² y su categoría
@@ -297,14 +328,28 @@ def cambiar_precio(plan_id):
 @app.route("/api/socios")
 def listar_socios():
     socios = consultar(
-        "SELECT s.id, s.nombre, s.ci, p.nombre AS plan, s.fecha_vencimiento "
-        "FROM socios s JOIN planes p ON s.plan_id = p.id "
+        "SELECT s.id, s.nombre, s.ci, p.nombre AS plan, s.fecha_vencimiento, s.fecha_cancelacion, "
+        + SQL_CONGELADO +
+        " FROM socios s JOIN planes p ON s.plan_id = p.id "
         "ORDER BY s.nombre"
     )
+
+    # REGLA 8: los cancelados solo se muestran si se piden con ?estado=Cancelado
+    ver_cancelados = request.args.get("estado") == "Cancelado"
+    resultado = []
     for socio in socios:
-        socio["estado"] = calcular_estado(socio["fecha_vencimiento"])
-        socio["fecha_vencimiento"] = str(socio["fecha_vencimiento"])
-    return jsonify(socios)
+        estado = estado_del_socio(socio)
+        if (estado == "Cancelado") != ver_cancelados:
+            continue
+        resultado.append({
+            "id": socio["id"],
+            "nombre": socio["nombre"],
+            "ci": socio["ci"],
+            "plan": socio["plan"],
+            "fecha_vencimiento": str(socio["fecha_vencimiento"]),
+            "estado": estado,
+        })
+    return jsonify(resultado)
 
 
 # 3. Alta de socio
@@ -366,6 +411,7 @@ def eliminar_socio(socio_id):
         cursor.execute("DELETE FROM asistencias WHERE socio_id = %s", (socio_id,))
         cursor.execute("DELETE FROM registros_peso WHERE socio_id = %s", (socio_id,))
         cursor.execute("DELETE FROM pagos WHERE socio_id = %s", (socio_id,))
+        cursor.execute("DELETE FROM congelamientos WHERE socio_id = %s", (socio_id,))
         cursor.execute("DELETE FROM socios WHERE id = %s", (socio_id,))
     return jsonify({"mensaje": "Socio eliminado correctamente"})
 
@@ -404,8 +450,8 @@ def editar_socio(socio_id):
 @app.route("/api/socios/<int:socio_id>")
 def ver_socio(socio_id):
     socio = consultar_uno(
-        "SELECT s.*, p.nombre AS plan, p.dias_por_semana "
-        "FROM socios s JOIN planes p ON s.plan_id = p.id "
+        "SELECT s.*, p.nombre AS plan, p.dias_por_semana, " + SQL_CONGELADO +
+        " FROM socios s JOIN planes p ON s.plan_id = p.id "
         "WHERE s.id = %s",
         (socio_id,),
     )
@@ -467,7 +513,7 @@ def ver_socio(socio_id):
         "plan": socio["plan"],
         "dias_por_semana": socio["dias_por_semana"],
         "fecha_vencimiento": str(socio["fecha_vencimiento"]),
-        "estado": calcular_estado(socio["fecha_vencimiento"]),
+        "estado": estado_del_socio(socio),
         "entradas_semana": contar_entradas_semana(socio_id),
         "imc": imc,
         "categoria_imc": categoria,
@@ -482,16 +528,21 @@ def ver_socio(socio_id):
 @app.route("/api/socios/<int:socio_id>/checkin", methods=["POST"])
 def hacer_checkin(socio_id):
     socio = consultar_uno(
-        "SELECT s.fecha_vencimiento, p.dias_por_semana "
-        "FROM socios s JOIN planes p ON s.plan_id = p.id "
+        "SELECT s.fecha_vencimiento, s.fecha_cancelacion, p.dias_por_semana, " + SQL_CONGELADO +
+        " FROM socios s JOIN planes p ON s.plan_id = p.id "
         "WHERE s.id = %s",
         (socio_id,),
     )
     if socio is None:
         return error("El socio no existe", 404)
 
-    # a) El plan no puede estar vencido
-    if calcular_estado(socio["fecha_vencimiento"]) == "Vencido":
+    # a) El plan tiene que estar en uso: ni cancelado, ni congelado, ni vencido
+    estado = estado_del_socio(socio)
+    if estado == "Cancelado":
+        return error("Socio cancelado")
+    if estado == "Congelado":
+        return error("Plan congelado")
+    if estado == "Vencido":
         return error("Plan vencido")
 
     # b) Solo una entrada por día
@@ -520,9 +571,13 @@ def hacer_checkin(socio_id):
 def renovar(socio_id):
     datos = leer_json()
 
-    socio = consultar_uno("SELECT fecha_vencimiento FROM socios WHERE id = %s", (socio_id,))
+    socio = buscar_socio(socio_id)
     if socio is None:
         return error("El socio no existe", 404)
+
+    estado = estado_del_socio(socio)
+    if estado == "Congelado":
+        return error("No se puede renovar un plan congelado")
 
     plan_id = leer_entero(datos.get("plan_id"))
     if plan_id is None:
@@ -532,15 +587,20 @@ def renovar(socio_id):
     if plan is None:
         return error("El plan no existe")
 
+    # REGLA 8: un cancelado vuelve desde hoy, sin los días que le quedaban
+    vencimiento_actual = socio["fecha_vencimiento"]
+    if estado == "Cancelado":
+        vencimiento_actual = None
+
     # REGLA 1: si sigue activo, se suman los días a lo que le queda
-    nueva_fecha = calcular_vencimiento(socio["fecha_vencimiento"], plan["duracion_dias"])
+    nueva_fecha = calcular_vencimiento(vencimiento_actual, plan["duracion_dias"])
 
     # REGLA 7: el pago deja registrados los días que le quedaban
-    dias_restantes = calcular_dias_restantes(socio["fecha_vencimiento"])
+    dias_restantes = calcular_dias_restantes(vencimiento_actual)
 
     with transaccion() as cursor:
         cursor.execute(
-            "UPDATE socios SET plan_id = %s, fecha_vencimiento = %s WHERE id = %s",
+            "UPDATE socios SET plan_id = %s, fecha_vencimiento = %s, fecha_cancelacion = NULL WHERE id = %s",
             (plan["id"], nueva_fecha, socio_id),
         )
         guardar_pago(cursor, socio_id, plan, dias_restantes, nueva_fecha)
@@ -550,6 +610,91 @@ def renovar(socio_id):
         + str(plan["duracion_dias"]) + " días del plan + "
         + str(dias_restantes) + " que le quedaban)"
     })
+
+
+# 10. Cancelar un socio (REGLA 8): se conserva todo su historial
+@app.route("/api/socios/<int:socio_id>/cancelar", methods=["POST"])
+def cancelar_socio(socio_id):
+    socio = buscar_socio(socio_id)
+    if socio is None:
+        return error("El socio no existe", 404)
+
+    estado = estado_del_socio(socio)
+    if estado == "Cancelado":
+        return error("El socio ya está cancelado")
+    if estado == "Congelado":
+        return error("Hay que descongelar el plan antes de cancelar")
+
+    ejecutar("UPDATE socios SET fecha_cancelacion = CURDATE() WHERE id = %s", (socio_id,))
+    return jsonify({"mensaje": "Socio cancelado"})
+
+
+# 11. Congelar un plan (REGLA 9)
+# Los días se suman al vencimiento de inmediato: el congelamiento termina solo al llegar a fecha_fin.
+@app.route("/api/socios/<int:socio_id>/congelar", methods=["POST"])
+def congelar_plan(socio_id):
+    datos = leer_json()
+
+    socio = buscar_socio(socio_id)
+    if socio is None:
+        return error("El socio no existe", 404)
+
+    if estado_del_socio(socio) not in ("Activo", "Por vencer"):
+        return error("Solo se puede congelar un plan en uso")
+
+    dias = leer_entero(datos.get("dias"))
+    if dias is None or dias < 1 or dias > CONGELAMIENTO_MAXIMO:
+        return error("Los días deben estar entre 1 y " + str(CONGELAMIENTO_MAXIMO))
+
+    # Un congelamiento por período: el período empieza en el último pago
+    repetido = consultar_uno(
+        "SELECT c.id FROM congelamientos c WHERE c.socio_id = %s AND c.fecha_inicio >= "
+        "COALESCE((SELECT MAX(fecha) FROM pagos WHERE socio_id = %s), '1000-01-01')",
+        (socio_id, socio_id),
+    )
+    if repetido:
+        return error("Ya usó su congelamiento de este período")
+
+    hoy = date.today()
+    fecha_fin = hoy + timedelta(days=dias)
+    with transaccion() as cursor:
+        cursor.execute(
+            "INSERT INTO congelamientos (socio_id, fecha_inicio, fecha_fin) VALUES (%s, %s, %s)",
+            (socio_id, hoy, fecha_fin),
+        )
+        cursor.execute(
+            "UPDATE socios SET fecha_vencimiento = %s WHERE id = %s",
+            (socio["fecha_vencimiento"] + timedelta(days=dias), socio_id),
+        )
+    return jsonify({"mensaje": "Plan congelado hasta " + str(fecha_fin)})
+
+
+# 12. Terminar un congelamiento antes de tiempo (REGLA 9): se restan los días no usados
+@app.route("/api/socios/<int:socio_id>/descongelar", methods=["POST"])
+def descongelar_plan(socio_id):
+    socio = buscar_socio(socio_id)
+    if socio is None:
+        return error("El socio no existe", 404)
+
+    congelamiento = consultar_uno(
+        "SELECT id, fecha_fin FROM congelamientos "
+        "WHERE socio_id = %s AND fecha_inicio <= CURDATE() AND CURDATE() < fecha_fin",
+        (socio_id,),
+    )
+    if congelamiento is None:
+        return error("El plan no está congelado")
+
+    dias_no_usados = calcular_dias_no_usados(congelamiento["fecha_fin"])
+    with transaccion() as cursor:
+        cursor.execute(
+            "UPDATE congelamientos SET fecha_fin = %s WHERE id = %s",
+            (date.today(), congelamiento["id"]),
+        )
+        cursor.execute(
+            "UPDATE socios SET fecha_vencimiento = %s WHERE id = %s",
+            (socio["fecha_vencimiento"] - timedelta(days=dias_no_usados), socio_id),
+        )
+    return jsonify({"mensaje": "Plan descongelado. Se restaron " + str(dias_no_usados) + " días no usados"})
 
 
 # 9. Registrar un nuevo peso
