@@ -23,6 +23,7 @@ header h1 {
 header a {
     color: #ccc;
     text-decoration: none;
+    margin-right: 12px;
 }
 
 main {
@@ -213,6 +214,29 @@ button:hover, .boton:hover {
     .columnas {
         grid-template-columns: 1fr;
     }
+}
+
+
+/* ---------- Dashboard: tarjetas con números (sin librerías de gráficos) ---------- */
+
+.tarjetas {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+}
+
+.tarjeta {
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 12px;
+    text-align: center;
+}
+
+.tarjeta .numero {
+    display: block;
+    font-size: 26px;
+    font-weight: bold;
+    margin-bottom: 6px;
 }
 
 

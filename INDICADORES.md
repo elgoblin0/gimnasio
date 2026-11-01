@@ -7,26 +7,26 @@ Guía para la presentación oral. Cada indicador de la rúbrica apunta al archiv
 | Indicador | Evidencia |
 |---|---|
 | Implementación | `base_datos.sql`: 11 tablas (`usuarios`, `planes`, `rutinas`, `rutina_ejercicios`, `socios`, `asistencias`, `ejercicios_realizados`, `registros_peso`, `pagos`, `congelamientos`, `auditoria_socios`) con claves foráneas (por ejemplo, líneas 85, 103 y 129), un `UNIQUE` que impide dos entradas el mismo día (línea 102) y datos de ejemplo. `migraciones/` actualiza una base existente sin recrearla. |
-| C.R.U.D. | **C**reate: alta de socio (`app.py:558`), check-in (`app.py:751`), nuevo peso (`app.py:1084`). **R**ead: lista y ficha (`app.py:511`, `app.py:659`). **U**pdate: editar datos del socio (`app.py:629`, formulario "Editar datos" en `socio.html`), renovar plan y actualizar peso mediante el trigger (`base_datos.sql:179`). **D**elete: eliminar socio (`app.py:605`). |
-| Conexión desde Python | `conectar()` en `app.py:63` con `mysql.connector`. Las funciones `consultar`, `consultar_uno` y `ejecutar` (`app.py:74-100`) evitan repetir código y usan consultas parametrizadas (`%s`). `transaccion()` (`app.py:104`) confirma o deshace varias escrituras juntas. |
+| C.R.U.D. | **C**reate: alta de socio (`app.py:585`), check-in (`app.py:778`), nuevo peso (`app.py:1166`). **R**ead: lista y ficha (`app.py:539`, `app.py:686`). **U**pdate: editar datos del socio (`app.py:656`, formulario "Editar datos" en `socio.html`), renovar plan y actualizar peso mediante el trigger (`base_datos.sql:179`). **D**elete: eliminar socio (`app.py:632`). |
+| Conexión desde Python | `conectar()` en `app.py:65` con `mysql.connector`. Las funciones `consultar`, `consultar_uno` y `ejecutar` (`app.py:76-102`) evitan repetir código y usan consultas parametrizadas (`%s`). `transaccion()` (`app.py:106`) confirma o deshace varias escrituras juntas. |
 
 ## Python (10 pts)
 
 | Indicador | Evidencia |
 |---|---|
-| Manejo de rutas | 22 rutas Flask con `@app.route`: `/`, `/api/login`, `/api/usuarios`, `/api/planes`, `/api/socios`, `/api/socios/<int:socio_id>` y sus sub-rutas. Usan métodos GET, POST, PUT, PATCH y DELETE. |
+| Manejo de rutas | 23 rutas Flask con `@app.route`: `/`, `/api/login`, `/api/usuarios`, `/api/planes`, `/api/dashboard`, `/api/socios`, `/api/socios/<int:socio_id>` y sus sub-rutas. Usan métodos GET, POST, PUT, PATCH y DELETE. |
 | Conexión con el cliente | Flask sirve `static/` desde la raíz (`app.py:20`) y expone la API JSON que consume `fetch` en `app.js:13`. |
-| Paso de información con el cliente | Entrada: `request.get_json()` dentro de `leer_json()` (`app.py:137`). Salida: `jsonify(...)`. Los errores usan `error()` con código HTTP (`app.py:119`). Los parámetros de URL (`<int:socio_id>`) también pasan datos. `request.args` lee `q` y `estado` en `app.py:513`. |
-| Lógica (iteradores y condicionales) | Bucle `for` que valida campos obligatorios (`app.py:177`, dentro de `validar_datos_socio`). Bucle `for` que calcula el estado de cada socio (`app.py:538`). Condicionales en las reglas: `calcular_estado`, `calcular_imc` y `calcular_progreso` (`app.py:235-286`) y en el check-in (`app.py:763-783`). |
-| Funciona sin errores | Validaciones antes de operar (`validar_datos_socio`, `app.py:176`): números, valores permitidos, largo de los textos, CI duplicado y plan inexistente, siempre con un error 400 y un mensaje claro. Alta, eliminación y registro de peso se guardan en una transacción. Las reglas tienen pruebas en `tests/test_reglas.py`. |
+| Paso de información con el cliente | Entrada: `request.get_json()` dentro de `leer_json()` (`app.py:139`). Salida: `jsonify(...)`. Los errores usan `error()` con código HTTP (`app.py:121`). Los parámetros de URL (`<int:socio_id>`) también pasan datos. `request.args` lee `q` y `estado` en `app.py:541`. |
+| Lógica (iteradores y condicionales) | Bucle `for` que valida campos obligatorios (`app.py:179`, dentro de `validar_datos_socio`). Bucle `for` que calcula el estado de cada socio (`app.py:565`). Condicionales en las reglas: `calcular_estado`, `calcular_imc` y `calcular_progreso` (`app.py:237-314`) y en el check-in (`app.py:790-810`). |
+| Funciona sin errores | Validaciones antes de operar (`validar_datos_socio`, `app.py:178`): números, valores permitidos, largo de los textos, CI duplicado y plan inexistente, siempre con un error 400 y un mensaje claro. Alta, eliminación y registro de peso se guardan en una transacción. Las reglas tienen pruebas en `tests/test_reglas.py`. |
 
 ## JavaScript (5 pts)
 
 | Indicador | Evidencia |
 |---|---|
-| Lógica (iteradores y condicionales) | `for...of` para pintar la tabla de socios (`app.js:212`, con plantillas de texto), los planes (`app.js:79`) y el historial de peso (`app.js:410`). Condicionales en `mostrarMensaje`, en el color del progreso (`mostrarProgreso`, `app.js:386`) y en `confirm()` antes de eliminar (`app.js:265`). |
+| Lógica (iteradores y condicionales) | `for...of` para pintar la tabla de socios (`app.js:212`, con plantillas de texto), los planes (`app.js:79`) y el historial de peso (`app.js:501`). Condicionales en `mostrarMensaje`, en el color del progreso (`mostrarProgreso`, `app.js:477`) y en `confirm()` antes de eliminar (`app.js:265`). |
 | Funciona sin errores | Todas las llamadas pasan por `llamarApi` (`app.js:13`) y se muestra el mensaje o el error de la API (`mostrarResultado`, `app.js:46`). |
-| Recibe y procesa información | Lee el JSON de la API y lo transforma: `formatearFecha`, `etiquetaEstado`, el IMC con su categoría, el signo `+` en la diferencia de peso. Lee el `?id=` de la URL (`app.js:313`). `escaparHtml` (`app.js:56`) muestra como texto el HTML que venga en los datos. `cargarFicha()` reparte los datos en funciones cortas (`mostrarDatos`, `mostrarPlan`, `mostrarSalud`, `mostrarProgreso`, `mostrarHistorial`, `mostrarAuditoria`). |
+| Recibe y procesa información | Lee el JSON de la API y lo transforma: `formatearFecha`, `etiquetaEstado`, el IMC con su categoría, el signo `+` en la diferencia de peso. Lee el `?id=` de la URL (`app.js:404`). `escaparHtml` (`app.js:56`) muestra como texto el HTML que venga en los datos. `cargarFicha()` reparte los datos en funciones cortas (`mostrarDatos`, `mostrarPlan`, `mostrarSalud`, `mostrarProgreso`, `mostrarHistorial`, `mostrarAuditoria`). |
 
 ## HTML (5 pts)
 
@@ -41,19 +41,20 @@ Guía para la presentación oral. Cada indicador de la rúbrica apunta al archiv
 
 | Indicador | Evidencia |
 |---|---|
-| Manejo de espacios | `margin`, `padding`, `gap`, `max-width: 900px` centrado. `display: grid` en `.campos` y `.columnas`. `@media (max-width: 600px)` pasa a una columna. |
+| Manejo de espacios | `margin`, `padding`, `gap`, `max-width: 900px` centrado. `display: grid` en `.campos`, `.columnas` y `.tarjetas` (`estilos.css:222`, con `auto-fit` para el dashboard). `@media (max-width: 600px)` pasa a una columna. |
 | Construcción visual | Cabecera oscura, secciones tipo tarjeta, etiquetas de colores para el estado (`.activo`, `.por-vencer`, `.vencido`), mensajes verdes y rojos. |
-| Importación | `<link rel="stylesheet" href="estilos.css">` en las cuatro páginas. |
+| Importación | `<link rel="stylesheet" href="estilos.css">` en las cinco páginas. |
 | Reutilización | Un solo `estilos.css` para todas las páginas. Clases reutilizables: `.boton` (sirve para `<button>` y `<a>`), `.estado`, `.mensaje`, `.columnas`. |
 | Aplicación de estilos a etiquetas | Selectores de etiqueta: `body`, `header`, `main`, `section`, `table`, `th, td`, `input, select`, `label`. |
-| Eventos `:hover` | `button:hover, .boton:hover` (`estilos.css:195`) y `.boton-eliminar:hover` (`estilos.css:224`). |
+| Eventos `:hover` | `button:hover, .boton:hover` (`estilos.css:196`) y `.boton-eliminar:hover` (`estilos.css:248`). |
 
 ## Reglas nuevas pedidas por el profesor
 
 | Pedido | Evidencia |
 |---|---|
-| Lista de búsqueda | T2: `listar_socios` (`app.py:512`) valida los cinco estados, busca por nombre o CI con parámetros y escapa los comodines de LIKE. `buscarSocios`, `limpiarBusqueda` y `cargarSocios` (`app.js:184-228`) usan el formulario (`index.html:22`) y muestran "No se encontraron socios". `TestBusqueda` en `tests/test_reglas.py` cubre los filtros sin MySQL. |
-| Triggers y auditoría | T4: `copiar_peso_socio` (`base_datos.sql:179`) actualiza el peso; `auditar_plan_socio` (`base_datos.sql:184`) compara plan/vencimiento y registra solo cambios. Migración repetible `migraciones/004_triggers.sql`. La ficha consulta `auditoria` (`app.py:708`) y la muestra con `escaparHtml` (`app.js:432`, `socio.html:147`). Eliminar borra la auditoría dentro de la transacción (`app.py:622`). Congelar/descongelar también se auditan (`app.py:871`, `app.py:910`). |
+| Lista de búsqueda | T2: `listar_socios` (`app.py:540`) valida los cinco estados, busca por nombre o CI con parámetros y escapa los comodines de LIKE. `buscarSocios`, `limpiarBusqueda` y `cargarSocios` (`app.js:184-228`) usan el formulario (`index.html:23`) y muestran "No se encontraron socios". `TestBusqueda` en `tests/test_reglas.py` cubre los filtros sin MySQL. |
+| Triggers y auditoría | T4: `copiar_peso_socio` (`base_datos.sql:179`) actualiza el peso; `auditar_plan_socio` (`base_datos.sql:184`) compara plan/vencimiento y registra solo cambios. Migración repetible `migraciones/004_triggers.sql`. La ficha consulta `auditoria` (`app.py:735`) y la muestra con `escaparHtml` (`app.js:523`, `socio.html:147`). Eliminar borra la auditoría dentro de la transacción (`app.py:649`). Congelar/descongelar también se auditan (`app.py:898`, `app.py:937`). |
+| Dashboard | T6: `ver_dashboard` (`app.py:1111`) cuenta socios por estado con `estado_del_socio`, suma los pagos del mes calendario con parámetros y elige el plan más vendido con `elegir_plan_mas_vendido` (`app.py:280`, empate alfabético). Regla 10: `calcular_dias_sin_entrar` y `esta_en_riesgo` (`app.py:262-277`). `cargarDashboard` y `tablaDeSocios` (`app.js:313-397`) pintan tarjetas y tablas en `dashboard.html`, sin librerías de gráficos. Pruebas: `TestRiesgo`, `TestPlanMasVendido` y `TestDashboard` en `tests/test_reglas.py`, y `tests/test_dashboard.py` contra MariaDB. |
 | Días sumados en el pago | Regla 7: `calcular_dias_restantes` y `guardar_pago` en `app.py`, tabla `pagos` en `base_datos.sql`, historial en la ficha (`mostrarPagos` en `app.js`). |
 | Cancelados | Regla 8: `cancelar_socio` en `app.py`, columna `fecha_cancelacion`, estado calculado en `calcular_estado`. |
 | Congelar plan (agregado) | Regla 9: `congelar_plan` y `descongelar_plan` en `app.py`, tabla `congelamientos`. No hace falta una tarea programada, porque el estado sale de comparar fechas. |
@@ -73,6 +74,8 @@ Evidencia de T2: 7 pruebas sin base en `tests/test_reglas.py` y 6 de integració
 
 Evidencia T4: 33 pruebas sin base (`tests/test_reglas.py`) y 7 pruebas reales (`tests/test_triggers.py`) en verde sobre MySQL 8.4.5 (3309) y MariaDB 11.4.5 (3308). Cubren copia de peso, cambio de plan/vencimiento, ausencia de cambios, congelar/descongelar, rollback, eliminación y repetición de la migración conservando el historial. Se importaron ambos SQL con los clientes de ambos motores y con phpMyAdmin 5.2.2 (PHP 8.3.20), repitiendo la migración desde su pestaña Importar. Se comprobó la ficha en Chrome a 1280 y 390 píxeles, con login, auditoría llena/vacía y escape de HTML; `node --check static/app.js` también pasó. No se usó el puerto 3306. Pasos y casos de presentación: README, sección "Triggers y auditoría (T4)".
 
+Evidencia de T6: 11 pruebas sin base y 4 de integración (`tests/test_dashboard.py`) en verde sobre MariaDB 11.4.5 aislado (puerto 3310). Se comprobó `dashboard.html` en la app real con login `recepcion`: tarjetas en el orden de la regla 2, socio en riesgo con enlace a su ficha y las cuatro listas. Pasos para la presentación: README, sección "Dashboard (T6)".
+
 Las reglas del gimnasio están en el README, sección "Reglas del gimnasio".
 
 ## Modificación solicitada (5 pts): puntos de cambio
@@ -81,7 +84,7 @@ Dónde tocar según lo que pidan:
 
 | Si piden... | Se toca |
 |---|---|
-| Una regla nueva o distinta (por ejemplo, otros días de aviso de vencimiento) | La función de la regla en `app.py:218-286`, y su prueba en `tests/test_reglas.py`. |
+| Una regla nueva o distinta (por ejemplo, otros días de aviso de vencimiento) | La función de la regla en `app.py:220-314`, y su prueba en `tests/test_reglas.py`. |
 | Un campo nuevo en el socio | Columna en `base_datos.sql`, `INSERT` y `SELECT` en `app.py`, formulario en `index.html`, dato en `app.js`. |
 | Un botón o acción nueva | Ruta en `app.py`, botón en el HTML y función en `app.js` con `llamarApi`. |
 | Un cambio visual | Clase nueva en `estilos.css` (por ejemplo, otro `:hover`). |

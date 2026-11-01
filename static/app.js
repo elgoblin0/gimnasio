@@ -306,6 +306,97 @@ async function darDeAlta(evento) {
 
 
 // ---------------------------------------------
+// DASHBOARD (dashboard.html)
+// ---------------------------------------------
+
+// Carga el dashboard: tarjetas, socios en riesgo (regla 10) y listas por estado
+async function cargarDashboard() {
+    const resultado = await llamarApi("/api/dashboard");
+    if (!resultado.ok) {
+        mostrarResultado(resultado);
+        return;
+    }
+    const datos = resultado.datos;
+
+    const tarjetas = document.getElementById("tarjetas-estado");
+    tarjetas.innerHTML = "";
+    for (const total of datos.totales) {
+        tarjetas.innerHTML += `
+            <div class="tarjeta">
+                <span class="numero">${total.cantidad}</span>
+                ${etiquetaEstado(total.estado)}
+            </div>`;
+    }
+
+    document.getElementById("mes").textContent = datos.mes;
+    document.getElementById("ingresos-mes").textContent = datos.ingresos_mes.toFixed(2);
+    if (datos.plan_mas_vendido === null) {
+        document.getElementById("plan-mas-vendido").textContent = "Sin ventas";
+    } else {
+        document.getElementById("plan-mas-vendido").textContent =
+            datos.plan_mas_vendido + " (" + datos.ventas_plan_mas_vendido + ")";
+    }
+
+    const riesgo = document.getElementById("tabla-riesgo");
+    riesgo.innerHTML = "";
+    if (datos.en_riesgo.length === 0) {
+        riesgo.innerHTML = '<tr><td colspan="5">No hay socios en riesgo</td></tr>';
+    }
+    for (const socio of datos.en_riesgo) {
+        // Sin entradas ni pagos no hay desde cuándo contar
+        let dias = "Sin datos";
+        if (socio.dias_sin_entrar !== null) {
+            dias = socio.dias_sin_entrar;
+        }
+        riesgo.innerHTML += `
+            <tr>
+                <td>${escaparHtml(socio.nombre)}</td>
+                <td>${escaparHtml(socio.plan)}</td>
+                <td>${etiquetaEstado(socio.estado)}</td>
+                <td>${dias}</td>
+                <td><a class="boton" href="socio.html?id=${socio.id}">Ver ficha</a></td>
+            </tr>`;
+    }
+
+    const listas = document.getElementById("listas-estado");
+    listas.innerHTML = "";
+    for (const lista of datos.listas) {
+        listas.innerHTML += `
+            <section>
+                <h2>${etiquetaEstado(lista.estado)} ${lista.socios.length}</h2>
+                ${tablaDeSocios(lista.socios)}
+            </section>`;
+    }
+}
+
+// Tabla simple de socios con enlace a su ficha (listas del dashboard)
+function tablaDeSocios(socios) {
+    if (socios.length === 0) {
+        return "<p>Ninguno</p>";
+    }
+    let filas = "";
+    for (const socio of socios) {
+        filas += `
+            <tr>
+                <td>${escaparHtml(socio.nombre)}</td>
+                <td>${escaparHtml(socio.plan)}</td>
+                <td>${escaparHtml(formatearFecha(socio.fecha_vencimiento))}</td>
+                <td><a class="boton" href="socio.html?id=${socio.id}">Ver ficha</a></td>
+            </tr>`;
+    }
+    return `
+        <div class="tabla-scroll">
+            <table>
+                <thead>
+                    <tr><th>Nombre</th><th>Plan</th><th>Vencimiento</th><th></th></tr>
+                </thead>
+                <tbody>${filas}</tbody>
+            </table>
+        </div>`;
+}
+
+
+// ---------------------------------------------
 // FICHA DEL SOCIO (socio.html)
 // ---------------------------------------------
 

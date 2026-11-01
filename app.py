@@ -33,6 +33,7 @@ LARGO_MAXIMO_USUARIO = {"nombre": 100, "usuario": 50}
 # Valores permitidos y límites de los datos de un socio
 OBJETIVOS = ("bajar peso", "ganar musculo", "mantenerse")
 NIVELES = ("principiante", "intermedio", "avanzado")
+ESTADOS = ("Activo", "Por vencer", "Vencido", "Congelado", "Cancelado")
 LARGO_MAXIMO = {"nombre": 100, "ci": 20, "telefono": 20}
 ALTURA_MINIMA = 0.5
 ALTURA_MAXIMA = 2.5
@@ -41,6 +42,7 @@ PESO_MAXIMO = 500
 PRECIO_MINIMO = 0.01
 PRECIO_MAXIMO = 999999.99
 CONGELAMIENTO_MAXIMO = 30
+DIAS_PARA_RIESGO = 14  # días sin entrar para que un socio esté en riesgo (REGLA 10)
 
 # Rutina por día (REGLAS 11 a 14)
 DIAS_POR_RUTINA = 3
@@ -253,6 +255,32 @@ def estado_del_socio(socio):
 # REGLA 9: días de un congelamiento que todavía no se usaron
 def calcular_dias_no_usados(fecha_fin):
     return max((fecha_fin - date.today()).days, 0)
+
+
+# REGLA 10: días sin entrar, desde la última entrada o, si nunca entró, desde su primer pago.
+# Sin entradas ni pagos devuelve None.
+def calcular_dias_sin_entrar(ultima_entrada, primer_pago):
+    desde = ultima_entrada
+    if desde is None:
+        desde = primer_pago
+    if desde is None:
+        return None
+    return (date.today() - desde).days
+
+
+# REGLA 10: en riesgo = plan en uso y 14 días o más sin entrar (o sin datos para saberlo).
+# Los congelados nunca están en riesgo: no pueden entrar.
+def esta_en_riesgo(estado, dias_sin_entrar):
+    if estado not in ("Activo", "Por vencer"):
+        return False
+    return dias_sin_entrar is None or dias_sin_entrar >= DIAS_PARA_RIESGO
+
+
+# Dashboard: plan con más ventas del mes. Si hay empate, el primero por orden alfabético.
+def elegir_plan_mas_vendido(ventas):
+    if not ventas:
+        return None
+    return min(ventas, key=lambda nombre: (-ventas[nombre], nombre))
 
 
 # REGLA 4: IMC = peso / altura² y su categoría
@@ -512,8 +540,7 @@ def cambiar_precio(plan_id):
 def listar_socios():
     texto = request.args.get("q", "").strip()
     filtro_estado = request.args.get("estado")
-    estados = ("Activo", "Por vencer", "Vencido", "Congelado", "Cancelado")
-    if filtro_estado is not None and filtro_estado not in estados:
+    if filtro_estado is not None and filtro_estado not in ESTADOS:
         return error("El estado no es válido")
 
     condicion = ""
@@ -1077,6 +1104,61 @@ def cambiar_activo(usuario_id):
     if activo:
         return jsonify({"mensaje": "Usuario activado"})
     return jsonify({"mensaje": "Usuario desactivado"})
+
+
+# 21. Dashboard: totales del mes, listas por estado y socios en riesgo (REGLA 10)
+@app.route("/api/dashboard")
+def ver_dashboard():
+    socios = consultar(
+        "SELECT s.id, s.nombre, s.ci, p.nombre AS plan, s.fecha_vencimiento, s.fecha_cancelacion, "
+        "(SELECT MAX(a.fecha) FROM asistencias a WHERE a.socio_id = s.id) AS ultima_entrada, "
+        "(SELECT MIN(pa.fecha) FROM pagos pa WHERE pa.socio_id = s.id) AS primer_pago, "
+        + SQL_CONGELADO +
+        " FROM socios s JOIN planes p ON s.plan_id = p.id ORDER BY s.nombre"
+    )
+
+    totales = {estado: 0 for estado in ESTADOS}
+    listas = {"Vencido": [], "Por vencer": [], "Congelado": [], "Cancelado": []}
+    en_riesgo = []
+    for socio in socios:
+        estado = estado_del_socio(socio)
+        totales[estado] += 1
+        fila = {
+            "id": socio["id"],
+            "nombre": socio["nombre"],
+            "plan": socio["plan"],
+            "fecha_vencimiento": str(socio["fecha_vencimiento"]),
+            "estado": estado,
+        }
+        if estado in listas:
+            listas[estado].append(fila)
+
+        dias = calcular_dias_sin_entrar(socio["ultima_entrada"], socio["primer_pago"])
+        if esta_en_riesgo(estado, dias):
+            en_riesgo.append(dict(fila, dias_sin_entrar=dias))
+
+    # Pagos del mes calendario: desde el día 1 de este mes hasta el día 1 del siguiente
+    inicio_mes = date.today().replace(day=1)
+    inicio_siguiente = (inicio_mes + timedelta(days=32)).replace(day=1)
+    ventas = consultar(
+        "SELECT pl.nombre, COUNT(*) AS cantidad, SUM(pa.monto) AS total "
+        "FROM pagos pa JOIN planes pl ON pa.plan_id = pl.id "
+        "WHERE pa.fecha >= %s AND pa.fecha < %s GROUP BY pl.id, pl.nombre",
+        (inicio_mes, inicio_siguiente),
+    )
+    cantidades = {venta["nombre"]: venta["cantidad"] for venta in ventas}
+    plan_mas_vendido = elegir_plan_mas_vendido(cantidades)
+
+    # Listas en vez de diccionarios: jsonify ordena las claves y se perdería este orden
+    return jsonify({
+        "mes": inicio_mes.strftime("%m/%Y"),
+        "totales": [{"estado": estado, "cantidad": totales[estado]} for estado in ESTADOS],
+        "ingresos_mes": round(sum(float(venta["total"]) for venta in ventas), 2),
+        "plan_mas_vendido": plan_mas_vendido,
+        "ventas_plan_mas_vendido": cantidades.get(plan_mas_vendido, 0),
+        "listas": [{"estado": estado, "socios": socios} for estado, socios in listas.items()],
+        "en_riesgo": en_riesgo,
+    })
 
 
 # 9. Registrar un nuevo peso

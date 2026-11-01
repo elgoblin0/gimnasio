@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gimnasio - Dashboard</title>
+    <link rel="stylesheet" href="estilos.css">
+</head>
+<body>
+    <header>
+        <a href="index.html">&larr; Volver</a>
+        <h1>Dashboard</h1>
+        <div id="sesion"></div>
+    </header>
+
+    <main>
+        <!-- Aquí aparecen los mensajes de éxito o error -->
+        <div id="mensaje"></div>
+
+        <section>
+            <h2>Socios por estado</h2>
+            <!-- Las tarjetas las rellena cargarDashboard() en app.js -->
+            <div id="tarjetas-estado" class="tarjetas"></div>
+        </section>
+
+        <section>
+            <h2>Este mes (<span id="mes"></span>)</h2>
+            <div class="tarjetas">
+                <div class="tarjeta">
+                    <span class="numero" id="ingresos-mes"></span>
+                    Ingresos
+                </div>
+                <div class="tarjeta">
+                    <span class="numero" id="plan-mas-vendido"></span>
+                    Plan más vendido
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2>Socios en riesgo (14 días o más sin entrar)</h2>
+            <div class="tabla-scroll">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nombre</th>
+                            <th>Plan</th>
+                            <th>Estado</th>
+                            <th>Días sin entrar</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-riesgo"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Una sección por estado: vencidos, por vencer, congelados y cancelados -->
+        <div id="listas-estado"></div>
+    </main>
+
+    <script src="app.js"></script>
+    <script>
+        // Al abrir la página: mostrar la sesión y cargar el dashboard
+        mostrarSesion();
+        cargarDashboard();
+    </script>
+</body>
+</html>
