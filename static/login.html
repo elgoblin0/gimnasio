@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gimnasio - Iniciar sesión</title>
+    <link rel="stylesheet" href="estilos.css">
+</head>
+<body>
+    <header>
+        <h1>GIMNASIO</h1>
+    </header>
+
+    <main>
+        <!-- Aquí aparecen los mensajes de éxito o error -->
+        <div id="mensaje"></div>
+
+        <section>
+            <h2>Iniciar sesión</h2>
+            <form onsubmit="iniciarSesion(event)">
+                <div class="campos">
+                    <label>Usuario <input id="usuario" autocomplete="username" required></label>
+                    <label>Contraseña <input id="clave" type="password" autocomplete="current-password" required></label>
+                </div>
+                <button type="submit">Entrar</button>
+            </form>
+        </section>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>

@@ -48,6 +48,16 @@ h2 {
     display: none !important;
 }
 
+/* Lo que solo usa el administrador no se muestra a los demás roles (regla 15) */
+body:not(.rol-admin) .solo-admin {
+    display: none;
+}
+
+#sesion {
+    margin-top: 8px;
+    font-size: 14px;
+}
+
 /* ---------- Mensajes ---------- */
 
 .mensaje {

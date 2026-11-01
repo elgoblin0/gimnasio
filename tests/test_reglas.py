@@ -226,9 +226,16 @@ class TestValidarSocio(unittest.TestCase):
 
 
 class TestRutas(unittest.TestCase):
-    # La validación ocurre antes de usar la base, así que no hace falta MySQL
+    # La validación ocurre antes de usar la base, así que no hace falta MySQL.
+    # Lo único que se simula es el usuario de la sesión.
     def setUp(self):
         self.cliente = gimnasio.app.test_client()
+        with self.cliente.session_transaction() as sesion:
+            sesion["usuario_id"] = 1
+        admin = {"id": 1, "nombre": "Admin", "usuario": "admin", "rol": "admin"}
+        simulacion = patch.object(gimnasio, "consultar_uno", return_value=admin)
+        simulacion.start()
+        self.addCleanup(simulacion.stop)
 
     def test_alta_con_numero_invalido_devuelve_400(self):
         respuesta = self.cliente.post("/api/socios", json=socio_valido(peso="abc"))
@@ -243,6 +250,42 @@ class TestRutas(unittest.TestCase):
                 )
                 self.assertEqual(respuesta.status_code, 400)
                 self.assertEqual(respuesta.get_json()["error"], "Falta el campo: nombre")
+
+
+class TestPermisos(unittest.TestCase):  # REGLA 15
+    def cliente_con_rol(self, rol):
+        cliente = gimnasio.app.test_client()
+        with cliente.session_transaction() as sesion:
+            sesion["usuario_id"] = 1
+        usuario = {"id": 1, "nombre": "Prueba", "usuario": "prueba", "rol": rol}
+        simulacion = patch.object(gimnasio, "consultar_uno", return_value=usuario)
+        simulacion.start()
+        self.addCleanup(simulacion.stop)
+        return cliente
+
+    def test_sin_sesion_devuelve_401(self):
+        cliente = gimnasio.app.test_client()
+        for metodo, ruta in [("get", "/api/socios"), ("post", "/api/socios/1/checkin"), ("get", "/api/sesion")]:
+            with self.subTest(ruta=ruta):
+                self.assertEqual(getattr(cliente, metodo)(ruta).status_code, 401)
+
+    def test_recepcion_no_usa_rutas_de_admin(self):
+        cliente = self.cliente_con_rol("recepcion")
+        casos = [
+            ("delete", "/api/socios/1"),
+            ("put", "/api/planes/1"),
+            ("get", "/api/usuarios"),
+            ("post", "/api/usuarios"),
+            ("patch", "/api/usuarios/1"),
+        ]
+        for metodo, ruta in casos:
+            with self.subTest(ruta=ruta):
+                self.assertEqual(getattr(cliente, metodo)(ruta).status_code, 403)
+
+    def test_paginas_estaticas_no_piden_sesion(self):
+        respuesta = gimnasio.app.test_client().get("/login.html")
+        self.assertEqual(respuesta.status_code, 200)
+        respuesta.close()
 
 
 class TestTransaccion(unittest.TestCase):
