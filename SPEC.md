@@ -22,10 +22,6 @@ El profesor pidió más lógica en el sistema. Este documento fija qué se agreg
 
 Cobros reales, envío de correos o WhatsApp, códigos QR, portal para socios, librerías de gráficos, varias sedes, IA y CRUD completo de rutinas o ejercicios.
 
-## Por confirmar con el profesor
-
-- **Días sumados:** interpretamos que un pago puede sumar días extra además de los del plan (regla 7). Los valores de 3 días por pago anticipado y 30 días como máximo de promoción son una propuesta nuestra.
-
 ## Tickets
 
 | # | Ticket | Issue | Depende de |
@@ -80,25 +76,27 @@ Cobros reales, envío de correos o WhatsApp, códigos QR, portal para socios, li
 
 **Datos**
 - `planes` suma `precio DECIMAL(8,2)`.
-- Nueva tabla `pagos`: `socio_id`, `plan_id`, `fecha`, `monto`, `dias_plan`, `dias_anticipo`, `dias_promocion`, `vencimiento_nuevo`.
+- Nueva tabla `pagos`: `socio_id`, `plan_id`, `fecha`, `monto`, `dias_plan`, `dias_restantes`, `vencimiento_nuevo`.
 - El monto se copia del plan, así un cambio de precio no altera los pagos anteriores.
 - No se usa símbolo de moneda.
 
 **Regla 7: días extra**
 
-| Situación | Días de anticipo |
+Quien paga antes del vencimiento no recibe solo los días del plan, sino también los que le quedaban. El cálculo del vencimiento ya lo hace la regla 1. Este ticket además lo registra en cada pago.
+
+| Situación | Días restantes |
 |---|---|
 | Alta de socio nuevo | 0 |
-| Renueva sin haber vencido (incluye el último día) | 3 |
+| Renueva antes de vencer | Días entre hoy y su vencimiento |
+| Renueva el último día | 0 |
 | Renueva con el plan vencido | 0 |
 
-- `dias_promocion` es un entero de 0 a 30 que se escribe a mano.
-- Nuevo vencimiento = resultado de la regla 1 + `dias_anticipo` + `dias_promocion`.
-- Los días son constantes con nombre en `app.py`, por ejemplo `DIAS_PAGO_ANTICIPADO = 3`.
+- Nuevo vencimiento = hoy + `dias_restantes` + `dias_plan`.
+- Ejemplo: a un socio le quedan 5 días y paga un plan de 30. Su plan vence dentro de 35 días.
 
 **API y pantallas**
 - `POST /api/socios` y `POST /api/socios/<id>/renovar` registran el pago en la misma transacción que el vencimiento.
-- `renovar` acepta `dias_promocion`, y `GET /api/socios/<id>` devuelve el historial de pagos.
+- `GET /api/socios/<id>` devuelve el historial de pagos.
 - `PUT /api/planes/<id>` cambia el precio, que debe ser mayor que 0.
 - La ficha muestra el historial con el desglose de días, e `index.html` suma una sección para editar precios.
 
@@ -126,7 +124,7 @@ Cobros reales, envío de correos o WhatsApp, códigos QR, portal para socios, li
 - `socios` suma `fecha_cancelacion DATE NULL`. `POST /api/socios/<id>/cancelar` la completa con la fecha de hoy.
 - No se puede cancelar a quien ya está cancelado o congelado.
 - Se conserva todo su historial. "Eliminar" sigue existiendo aparte, y borra también las filas de las tablas nuevas.
-- Renovar reactiva al socio: el plan cuenta desde hoy, sin días de anticipo.
+- Renovar reactiva al socio: el plan cuenta desde hoy, sin sumar los días que le quedaban.
 - `GET /api/socios` oculta a los cancelados, salvo con `estado=Cancelado`.
 
 **Regla 9: congelar**
@@ -199,7 +197,6 @@ Cobros reales, envío de correos o WhatsApp, códigos QR, portal para socios, li
 |---|---|---|
 | Altas, check-in, pesos, rutinas, renovar, cancelar y congelar | Sí | Sí |
 | Ver dashboard | Sí | Sí |
-| Días de promoción mayores que 0 | Sí | No |
 | Editar precios de planes | Sí | No |
 | Eliminar socios | Sí | No |
 | Ver, crear, activar y desactivar usuarios | Sí | No |
