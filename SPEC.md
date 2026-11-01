@@ -28,17 +28,17 @@ Cobros reales, envío de correos o WhatsApp, códigos QR, portal para socios, li
 
 ## Tickets
 
-| # | Ticket | Depende de |
-|---|---|---|
-| T1 | Base: validación, transacciones, seguridad y pruebas | Ninguno |
-| T2 | Búsqueda de socios | T1 |
-| T3 | Precios, pagos y días extra | T1 |
-| T4 | Triggers y auditoría | T3 |
-| T5 | Cancelar y congelar plan | T3 |
-| T6 | Dashboard | T3, T5 |
-| T7 | Rutina por día, cumplimiento y nivel | T1 |
-| T8 | Login, roles y listado de usuarios | T3, T5, T6, T7 |
-| T9 | IMC manual (opcional) | T8 |
+| # | Ticket | Issue | Depende de |
+|---|---|---|---|
+| T1 | Base: validación, transacciones, seguridad y pruebas | [#5](https://github.com/elgoblin0/gimnasio/issues/5) | Ninguno |
+| T2 | Búsqueda de socios | [#6](https://github.com/elgoblin0/gimnasio/issues/6) | T1 |
+| T3 | Precios, pagos y días extra | [#7](https://github.com/elgoblin0/gimnasio/issues/7) | T1 |
+| T4 | Triggers y auditoría | [#8](https://github.com/elgoblin0/gimnasio/issues/8) | T3 |
+| T5 | Cancelar y congelar plan | [#9](https://github.com/elgoblin0/gimnasio/issues/9) | T3 |
+| T6 | Dashboard | [#10](https://github.com/elgoblin0/gimnasio/issues/10) | T3, T5 |
+| T7 | Rutina por día, cumplimiento y nivel | [#11](https://github.com/elgoblin0/gimnasio/issues/11) | T1 |
+| T8 | Login, roles y listado de usuarios | [#12](https://github.com/elgoblin0/gimnasio/issues/12) | T3, T5, T6, T7 |
+| T9 | IMC manual (opcional) | [#13](https://github.com/elgoblin0/gimnasio/issues/13) | T8 |
 
 ## T1. Base
 
