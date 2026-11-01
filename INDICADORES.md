@@ -7,7 +7,7 @@ Guía para la presentación oral. Cada indicador de la rúbrica apunta al archiv
 | Indicador | Evidencia |
 |---|---|
 | Implementación | `base_datos.sql`: 10 tablas (`usuarios`, `planes`, `rutinas`, `rutina_ejercicios`, `socios`, `asistencias`, `ejercicios_realizados`, `registros_peso`, `pagos`, `congelamientos`) con claves foráneas (por ejemplo, líneas 85, 103 y 129), un `UNIQUE` que impide dos entradas el mismo día (línea 102) y datos de ejemplo. `migraciones/` actualiza una base existente sin recrearla. |
-| C.R.U.D. | **C**reate: alta de socio (`app.py:539`), check-in (`app.py:715`), nuevo peso (`app.py:1048`). **R**ead: lista y ficha (`app.py:511`, `app.py:639`). **U**pdate: editar datos del socio (`app.py:609`, formulario "Editar datos" en `socio.html`), renovar plan y actualizar peso. **D**elete: eliminar socio (`app.py:587`). |
+| C.R.U.D. | **C**reate: alta de socio (`app.py:558`), check-in (`app.py:734`), nuevo peso (`app.py:1067`). **R**ead: lista y ficha (`app.py:511`, `app.py:658`). **U**pdate: editar datos del socio (`app.py:628`, formulario "Editar datos" en `socio.html`), renovar plan y actualizar peso. **D**elete: eliminar socio (`app.py:607`). |
 | Conexión desde Python | `conectar()` en `app.py:63` con `mysql.connector`. Las funciones `consultar`, `consultar_uno` y `ejecutar` (`app.py:74-100`) evitan repetir código y usan consultas parametrizadas (`%s`). `transaccion()` (`app.py:104`) confirma o deshace varias escrituras juntas. |
 
 ## Python (10 pts)
@@ -16,17 +16,17 @@ Guía para la presentación oral. Cada indicador de la rúbrica apunta al archiv
 |---|---|
 | Manejo de rutas | 22 rutas Flask con `@app.route`: `/`, `/api/login`, `/api/usuarios`, `/api/planes`, `/api/socios`, `/api/socios/<int:socio_id>` y sus sub-rutas. Usan métodos GET, POST, PUT, PATCH y DELETE. |
 | Conexión con el cliente | Flask sirve `static/` desde la raíz (`app.py:20`) y expone la API JSON que consume `fetch` en `app.js:13`. |
-| Paso de información con el cliente | Entrada: `request.get_json()` dentro de `leer_json()` (`app.py:137`). Salida: `jsonify(...)`. Los errores usan `error()` con código HTTP (`app.py:119`). Los parámetros de URL (`<int:socio_id>`) también pasan datos. |
-| Lógica (iteradores y condicionales) | Bucle `for` que valida campos obligatorios (`app.py:177`, dentro de `validar_datos_socio`). Bucle `for` que calcula el estado de cada socio (`app.py:523`). Condicionales en las reglas: `calcular_estado`, `calcular_imc` y `calcular_progreso` (`app.py:233-286`) y en el check-in (`app.py:726-746`). |
+| Paso de información con el cliente | Entrada: `request.get_json()` dentro de `leer_json()` (`app.py:137`). Salida: `jsonify(...)`. Los errores usan `error()` con código HTTP (`app.py:119`). Los parámetros de URL (`<int:socio_id>`) también pasan datos. `request.args` lee `q` y `estado` en `app.py:513`. |
+| Lógica (iteradores y condicionales) | Bucle `for` que valida campos obligatorios (`app.py:177`, dentro de `validar_datos_socio`). Bucle `for` que calcula el estado de cada socio (`app.py:538`). Condicionales en las reglas: `calcular_estado`, `calcular_imc` y `calcular_progreso` (`app.py:235-286`) y en el check-in (`app.py:745-765`). |
 | Funciona sin errores | Validaciones antes de operar (`validar_datos_socio`, `app.py:176`): números, valores permitidos, largo de los textos, CI duplicado y plan inexistente, siempre con un error 400 y un mensaje claro. Alta, eliminación y registro de peso se guardan en una transacción. Las reglas tienen pruebas en `tests/test_reglas.py`. |
 
 ## JavaScript (5 pts)
 
 | Indicador | Evidencia |
 |---|---|
-| Lógica (iteradores y condicionales) | `for...of` para pintar la tabla de socios (`app.js:193`, con plantillas de texto), los planes (`app.js:79`) y el historial de peso (`app.js:390`). Condicionales en `mostrarMensaje`, en el color del progreso (`mostrarProgreso`, `app.js:366`) y en `confirm()` antes de eliminar (`app.js:246`). |
+| Lógica (iteradores y condicionales) | `for...of` para pintar la tabla de socios (`app.js:212`, con plantillas de texto), los planes (`app.js:79`) y el historial de peso (`app.js:409`). Condicionales en `mostrarMensaje`, en el color del progreso (`mostrarProgreso`, `app.js:385`) y en `confirm()` antes de eliminar (`app.js:265`). |
 | Funciona sin errores | Todas las llamadas pasan por `llamarApi` (`app.js:13`) y se muestra el mensaje o el error de la API (`mostrarResultado`, `app.js:46`). |
-| Recibe y procesa información | Lee el JSON de la API y lo transforma: `formatearFecha`, `etiquetaEstado`, el IMC con su categoría, el signo `+` en la diferencia de peso. Lee el `?id=` de la URL (`app.js:294`). `escaparHtml` (`app.js:56`) muestra como texto el HTML que venga en los datos. `cargarFicha()` reparte los datos en funciones cortas (`mostrarDatos`, `mostrarPlan`, `mostrarSalud`, `mostrarProgreso`, `mostrarHistorial`). |
+| Recibe y procesa información | Lee el JSON de la API y lo transforma: `formatearFecha`, `etiquetaEstado`, el IMC con su categoría, el signo `+` en la diferencia de peso. Lee el `?id=` de la URL (`app.js:313`). `escaparHtml` (`app.js:56`) muestra como texto el HTML que venga en los datos. `cargarFicha()` reparte los datos en funciones cortas (`mostrarDatos`, `mostrarPlan`, `mostrarSalud`, `mostrarProgreso`, `mostrarHistorial`). |
 
 ## HTML (5 pts)
 
@@ -52,6 +52,7 @@ Guía para la presentación oral. Cada indicador de la rúbrica apunta al archiv
 
 | Pedido | Evidencia |
 |---|---|
+| Lista de búsqueda | T2: `listar_socios` (`app.py:512`) valida los cinco estados, busca por nombre o CI con parámetros y escapa los comodines de LIKE. `buscarSocios`, `limpiarBusqueda` y `cargarSocios` (`app.js:184-227`) usan el formulario (`index.html:22`) y muestran "No se encontraron socios". `TestBusqueda` en `tests/test_reglas.py` cubre los filtros sin MySQL. |
 | Días sumados en el pago | Regla 7: `calcular_dias_restantes` y `guardar_pago` en `app.py`, tabla `pagos` en `base_datos.sql`, historial en la ficha (`mostrarPagos` en `app.js`). |
 | Cancelados | Regla 8: `cancelar_socio` en `app.py`, columna `fecha_cancelacion`, estado calculado en `calcular_estado`. |
 | Congelar plan (agregado) | Regla 9: `congelar_plan` y `descongelar_plan` en `app.py`, tabla `congelamientos`. No hace falta una tarea programada, porque el estado sale de comparar fechas. |
@@ -66,6 +67,8 @@ Resumen para explicar en 30 segundos:
 1. El navegador carga `index.html` y `app.js` llama a `/api/socios`.
 2. Flask recibe la petición, consulta MySQL con `consultar()` y aplica las reglas (estado, IMC, progreso, check-in).
 3. Flask devuelve JSON y `app.js` lo pinta en la tabla.
+
+Evidencia de T2: 40 pruebas en verde con `python -m unittest tests.test_reglas` (7 nuevas). Se verificó también la sintaxis de JavaScript con `node --check static/app.js`. La prueba de la app contra un MySQL separado está pendiente; no se importó `base_datos.sql` ni se utilizó el puerto 3306. Los casos para la presentación están en el README, sección "Búsqueda de socios (T2)".
 
 Las reglas del gimnasio están en el README, sección "Reglas del gimnasio".
 

@@ -66,6 +66,20 @@ Comprueban las reglas y las validaciones. No necesitan MySQL ni instalar nada m�
 python3 -m unittest tests.test_reglas
 ```
 
+## Búsqueda de socios (T2)
+
+En la lista, escribe parte del nombre o del CI, elige un estado si quieres y pulsa **Buscar** (también funciona Enter). **Limpiar** vacía ambos filtros y vuelve a mostrar la lista sin cancelados. Si no hay coincidencias, aparece "No se encontraron socios".
+
+- `GET /api/socios` admite `q` y `estado`, opcionales y combinables; requiere sesión tanto para administrador como para recepción.
+- `q` busca coincidencias parciales en nombre o CI. Se recortan los espacios de los extremos; vacío equivale a no buscar. `%` y `_` se buscan como texto, no como comodines.
+- Los estados válidos son `Activo`, `Por vencer`, `Vencido`, `Congelado` y `Cancelado`. Cualquier otro valor (incluido `estado=`) devuelve 400.
+- Sin `estado` se ocultan los cancelados. Un estado explícito muestra solo ese estado, conservando la prioridad de cancelación y congelamiento.
+- La consulta usa parámetros `%s` y `LIKE ... ESCAPE '!'`; el estado se filtra con `estado_del_socio`, sin duplicar las reglas en SQL. No cambia la base ni necesita migración.
+
+Para demostrarlo con los datos de ejemplo, inicia sesión y prueba `q=Gomez` (Maria, Valentina y Javier), `q=Gomez&estado=Vencido` (Maria y Valentina), `estado=Congelado` (Martin) y `estado=Cancelado` (Paula). Prueba un texto inexistente para ver el mensaje vacío y luego **Limpiar**. En la API, `estado=Inventado` debe devolver 400; buscar `%` o `_` no debe traer a todos los socios.
+
+Evidencia automatizada: `python -m unittest tests.test_reglas`, 40 pruebas en verde (7 de búsqueda), con la sesión y las consultas simuladas, sin MySQL. Estas pruebas verifican filtros, estados, parámetros y escapes. La integración de T2 en la app contra MySQL queda pendiente: en este entorno no se encontró un servidor separado disponible; no se importó el SQL ni se utilizó el puerto 3306. Para probarlo, usa una instancia de MySQL/MariaDB exclusiva para el proyecto: `base_datos.sql` borra la base `gimnasio`.
+
 ## Archivos
 
 ```
@@ -77,7 +91,7 @@ gimnasio/
 ├── tests/             ← pruebas de las reglas
 └── static/
     ├── login.html     ← entrada al sistema
-    ├── index.html     ← lista de socios, check-in, alta y precios
+    ├── index.html     ← búsqueda de socios, check-in, alta y precios
     ├── socio.html     ← ficha: IMC, rutina, progreso, pagos, renovar
     ├── usuarios.html  ← listado y alta de usuarios (solo administrador)
     ├── app.js         ← llamadas a la API (fetch)
@@ -134,7 +148,7 @@ Las fechas de ejemplo se calculan a partir del día en que se importa el `.sql`,
 | Lucia Rodriguez | Por vencer (2 días). Bajó de 95 a 91 kg: "Va bien". IMC en Obesidad. |
 | Valentina Diaz | Vencida. Quiere mantenerse pero subió 4 kg (48 → 52): "No va bien". IMC en Bajo peso. |
 | Javier Gomez | Plan de 3 días/semana y ya entró 3 veces en los últimos 7 días: el check-in dice "Ya usó sus 3 días de los últimos 7". |
-| Paula Sosa | Cancelada (se ve con "Ver solo cancelados"). Al renovar, el plan cuenta desde hoy, sin sus 10 días restantes. |
+| Paula Sosa | Cancelada (se ve eligiendo "Cancelado" en el filtro de estado). Al renovar, el plan cuenta desde hoy, sin sus 10 días restantes. |
 | Martin Silva | Congelado 12 días más. El check-in se rechaza, y al descongelar se restan esos 12 días. |
 
 Si los datos quedan desordenados de tanto probar, se vuelve a importar `base_datos.sql` y listo.
@@ -166,7 +180,7 @@ Toda ruta pide sesión, salvo el login. Las marcadas con (admin) son solo para e
 | PATCH | `/api/usuarios/<id>` | Activar o desactivar un usuario (admin) |
 | GET | `/api/planes` | Lista de planes |
 | PUT | `/api/planes/<id>` | Cambiar el precio de un plan (admin) |
-| GET | `/api/socios` | Lista de socios con su estado. Oculta a los cancelados, salvo con `?estado=Cancelado` |
+| GET | `/api/socios` | Busca por `?q=texto&estado=Vencido` (opcionales y combinables). Sin estado, oculta cancelados; con `estado=Cancelado`, muestra solo cancelados |
 | POST | `/api/socios` | Alta de socio |
 | GET | `/api/socios/<id>` | Ficha completa (IMC, rutina, progreso, historial, pagos) |
 | PUT | `/api/socios/<id>` | Editar nombre, CI, teléfono, altura, objetivo y nivel |
