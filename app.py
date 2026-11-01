@@ -24,6 +24,8 @@ ALTURA_MINIMA = 0.5
 ALTURA_MAXIMA = 2.5
 PESO_MINIMO = 1
 PESO_MAXIMO = 500
+PRECIO_MINIMO = 0.01
+PRECIO_MAXIMO = 999999.99
 
 
 # ---------------------------------------------
@@ -183,6 +185,14 @@ def calcular_vencimiento(fecha_vencimiento, dias):
     return hoy + timedelta(days=dias)
 
 
+# REGLA 7: días que le quedaban al socio al pagar (sus "días extra")
+# El último día, o con el plan vencido, ya no le queda ninguno.
+def calcular_dias_restantes(fecha_vencimiento):
+    if fecha_vencimiento is None or fecha_vencimiento < date.today():
+        return 0
+    return (fecha_vencimiento - date.today()).days
+
+
 # REGLA 2: estado del socio según los días que le quedan
 def calcular_estado(fecha_vencimiento):
     dias_restantes = (fecha_vencimiento - date.today()).days
@@ -234,6 +244,17 @@ def contar_entradas_semana(socio_id):
     return fila["total"]
 
 
+# Guarda un pago (REGLA 7), dentro de la transacción que cambia el vencimiento.
+# El monto se copia del plan: cambiar el precio no altera los pagos anteriores.
+def guardar_pago(cursor, socio_id, plan, dias_restantes, vencimiento_nuevo):
+    cursor.execute(
+        "INSERT INTO pagos (socio_id, plan_id, fecha, monto, dias_plan, dias_restantes, vencimiento_nuevo) "
+        "VALUES (%s, %s, %s, %s, %s, %s, %s)",
+        (socio_id, plan["id"], date.today(), plan["precio"], plan["duracion_dias"],
+         dias_restantes, vencimiento_nuevo),
+    )
+
+
 # ---------------------------------------------
 # PÁGINA PRINCIPAL
 # ---------------------------------------------
@@ -251,7 +272,25 @@ def inicio():
 @app.route("/api/planes")
 def listar_planes():
     planes = consultar("SELECT * FROM planes ORDER BY id")
+    for plan in planes:
+        plan["precio"] = float(plan["precio"])
     return jsonify(planes)
+
+
+# Cambiar el precio de un plan
+@app.route("/api/planes/<int:plan_id>", methods=["PUT"])
+def cambiar_precio(plan_id):
+    datos = leer_json()
+
+    if consultar_uno("SELECT id FROM planes WHERE id = %s", (plan_id,)) is None:
+        return error("El plan no existe", 404)
+
+    precio = leer_numero(datos.get("precio"))
+    if precio is None or precio < PRECIO_MINIMO or precio > PRECIO_MAXIMO:
+        return error("El precio debe ser mayor que 0")
+
+    ejecutar("UPDATE planes SET precio = %s WHERE id = %s", (precio, plan_id))
+    return jsonify({"mensaje": "Precio actualizado"})
 
 
 # 2. Lista de socios con su estado
@@ -290,7 +329,7 @@ def crear_socio():
     # REGLA 1: socio nuevo, el plan empieza hoy
     fecha_vencimiento = calcular_vencimiento(None, plan["duracion_dias"])
 
-    # El socio y su primer peso se guardan juntos
+    # El socio, su primer peso y su primer pago se guardan juntos
     try:
         with transaccion() as cursor:
             cursor.execute(
@@ -306,6 +345,9 @@ def crear_socio():
                 "INSERT INTO registros_peso (socio_id, fecha, peso) VALUES (%s, %s, %s)",
                 (socio_id, date.today(), peso),
             )
+
+            # REGLA 7: un socio nuevo no tiene días restantes
+            guardar_pago(cursor, socio_id, plan, 0, fecha_vencimiento)
     except mysql.connector.IntegrityError:
         # Otro pedido guardó el mismo CI justo después de la comprobación de arriba
         return error("Ya existe un socio con ese CI")
@@ -323,6 +365,7 @@ def eliminar_socio(socio_id):
     with transaccion() as cursor:
         cursor.execute("DELETE FROM asistencias WHERE socio_id = %s", (socio_id,))
         cursor.execute("DELETE FROM registros_peso WHERE socio_id = %s", (socio_id,))
+        cursor.execute("DELETE FROM pagos WHERE socio_id = %s", (socio_id,))
         cursor.execute("DELETE FROM socios WHERE id = %s", (socio_id,))
     return jsonify({"mensaje": "Socio eliminado correctamente"})
 
@@ -399,6 +442,18 @@ def ver_socio(socio_id):
         )
         progreso = {"diferencia": diferencia, "resultado": resultado}
 
+    # REGLA 7: historial de pagos, del más reciente al más antiguo
+    pagos = consultar(
+        "SELECT pa.fecha, pl.nombre AS plan, pa.monto, pa.dias_plan, pa.dias_restantes, pa.vencimiento_nuevo "
+        "FROM pagos pa JOIN planes pl ON pa.plan_id = pl.id "
+        "WHERE pa.socio_id = %s ORDER BY pa.fecha DESC, pa.id DESC",
+        (socio_id,),
+    )
+    for pago in pagos:
+        pago["fecha"] = str(pago["fecha"])
+        pago["monto"] = float(pago["monto"])
+        pago["vencimiento_nuevo"] = str(pago["vencimiento_nuevo"])
+
     return jsonify({
         "id": socio["id"],
         "nombre": socio["nombre"],
@@ -419,6 +474,7 @@ def ver_socio(socio_id):
         "rutina": rutina,
         "progreso": progreso,
         "historial_peso": historial,
+        "pagos": pagos,
     })
 
 
@@ -479,11 +535,21 @@ def renovar(socio_id):
     # REGLA 1: si sigue activo, se suman los días a lo que le queda
     nueva_fecha = calcular_vencimiento(socio["fecha_vencimiento"], plan["duracion_dias"])
 
-    ejecutar(
-        "UPDATE socios SET plan_id = %s, fecha_vencimiento = %s WHERE id = %s",
-        (plan["id"], nueva_fecha, socio_id),
-    )
-    return jsonify({"mensaje": "Plan renovado hasta " + str(nueva_fecha)})
+    # REGLA 7: el pago deja registrados los días que le quedaban
+    dias_restantes = calcular_dias_restantes(socio["fecha_vencimiento"])
+
+    with transaccion() as cursor:
+        cursor.execute(
+            "UPDATE socios SET plan_id = %s, fecha_vencimiento = %s WHERE id = %s",
+            (plan["id"], nueva_fecha, socio_id),
+        )
+        guardar_pago(cursor, socio_id, plan, dias_restantes, nueva_fecha)
+
+    return jsonify({
+        "mensaje": "Plan renovado hasta " + str(nueva_fecha) + " ("
+        + str(plan["duracion_dias"]) + " días del plan + "
+        + str(dias_restantes) + " que le quedaban)"
+    })
 
 
 # 9. Registrar un nuevo peso

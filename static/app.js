@@ -71,7 +71,7 @@ async function cargarPlanes(idSelect, planElegido) {
     for (const plan of resultado.datos) {
         const opcion = document.createElement("option");
         opcion.value = plan.id;
-        opcion.textContent = plan.nombre;
+        opcion.textContent = plan.nombre + " (" + plan.precio + ")";
         if (plan.id === planElegido) {
             opcion.selected = true;
         }
@@ -103,6 +103,33 @@ async function cargarSocios() {
                     <button class="boton-eliminar" onclick="eliminarSocio(${socio.id})">Eliminar</button>
                 </td>
             </tr>`;
+    }
+}
+
+// Carga la tabla para editar los precios de los planes
+async function cargarPrecios() {
+    const resultado = await llamarApi("/api/planes");
+    const tabla = document.getElementById("tabla-precios");
+    tabla.innerHTML = "";
+    for (const plan of resultado.datos) {
+        tabla.innerHTML += `
+            <tr>
+                <td>${escaparHtml(plan.nombre)}</td>
+                <td>${plan.duracion_dias}</td>
+                <td><input id="precio-${plan.id}" type="number" step="0.01" value="${plan.precio}"></td>
+                <td><button onclick="guardarPrecio(${plan.id})">Guardar</button></td>
+            </tr>`;
+    }
+}
+
+// Guarda el precio nuevo de un plan
+async function guardarPrecio(id) {
+    const datos = { precio: document.getElementById("precio-" + id).value };
+    const resultado = await llamarApi("/api/planes/" + id, "PUT", datos);
+    mostrarResultado(resultado);
+    if (resultado.ok) {
+        cargarPrecios();
+        cargarPlanes("plan", null);
     }
 }
 
@@ -182,6 +209,7 @@ async function cargarFicha() {
     mostrarSalud(socio);
     mostrarProgreso(socio);
     mostrarHistorial(socio);
+    mostrarPagos(socio);
 }
 
 // Cabecera, datos personales y formulario de edición con los valores actuales
@@ -251,6 +279,22 @@ function mostrarHistorial(socio) {
     tabla.innerHTML = "";
     for (const registro of socio.historial_peso) {
         tabla.innerHTML += `<tr><td>${escaparHtml(formatearFecha(registro.fecha))}</td><td>${escaparHtml(registro.peso)}</td></tr>`;
+    }
+}
+
+// Tabla con el historial de pagos y el desglose de días (regla 7)
+function mostrarPagos(socio) {
+    const tabla = document.getElementById("tabla-pagos");
+    tabla.innerHTML = "";
+    for (const pago of socio.pagos) {
+        tabla.innerHTML += `
+            <tr>
+                <td>${escaparHtml(formatearFecha(pago.fecha))}</td>
+                <td>${escaparHtml(pago.plan)}</td>
+                <td>${pago.monto}</td>
+                <td>${pago.dias_plan} + ${pago.dias_restantes}</td>
+                <td>${escaparHtml(formatearFecha(pago.vencimiento_nuevo))}</td>
+            </tr>`;
     }
 }
 

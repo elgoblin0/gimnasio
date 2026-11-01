@@ -11,12 +11,14 @@ USE gimnasio;
 -- PLANES
 -- duracion_dias: cuántos días dura el plan
 -- dias_por_semana: cuántas veces puede entrar por semana (7 = libre)
+-- precio: lo que se cobra hoy por el plan
 -- ---------------------------------------------
 CREATE TABLE planes (
     id INT AUTO_INCREMENT PRIMARY KEY,
     nombre VARCHAR(50) NOT NULL,
     duracion_dias INT NOT NULL,
-    dias_por_semana INT NOT NULL
+    dias_por_semana INT NOT NULL,
+    precio DECIMAL(8,2) NOT NULL
 );
 
 -- ---------------------------------------------
@@ -79,16 +81,35 @@ CREATE TABLE registros_peso (
     FOREIGN KEY (socio_id) REFERENCES socios(id)
 );
 
+-- ---------------------------------------------
+-- PAGOS
+-- monto: se copia del plan, para que un cambio de precio no altere el historial
+-- dias_restantes: los días que le quedaban al socio al pagar (sus "días extra")
+-- vencimiento_nuevo: fecha de vencimiento que quedó después del pago
+-- ---------------------------------------------
+CREATE TABLE pagos (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    socio_id INT NOT NULL,
+    plan_id INT NOT NULL,
+    fecha DATE NOT NULL,
+    monto DECIMAL(8,2) NOT NULL,
+    dias_plan INT NOT NULL,
+    dias_restantes INT NOT NULL,
+    vencimiento_nuevo DATE NOT NULL,
+    FOREIGN KEY (socio_id) REFERENCES socios(id),
+    FOREIGN KEY (plan_id) REFERENCES planes(id)
+);
+
 
 -- =============================================
 -- DATOS DE EJEMPLO
 -- =============================================
 
-INSERT INTO planes (nombre, duracion_dias, dias_por_semana) VALUES
-('Mensual libre', 30, 7),
-('Mensual 3 dias', 30, 3),
-('Trimestral', 90, 7),
-('Anual', 365, 7);
+INSERT INTO planes (nombre, duracion_dias, dias_por_semana, precio) VALUES
+('Mensual libre', 30, 7, 1500.00),
+('Mensual 3 dias', 30, 3, 1000.00),
+('Trimestral', 90, 7, 4000.00),
+('Anual', 365, 7, 14000.00);
 
 INSERT INTO rutinas (nombre, objetivo, nivel, descripcion) VALUES
 ('Quema inicial',     'bajar peso',    'principiante', '30 min cinta + circuito suave de cuerpo completo'),
@@ -111,6 +132,18 @@ INSERT INTO socios (nombre, ci, telefono, peso, altura, objetivo, nivel, plan_id
 ('Lucia Rodriguez','77777777G', '600777777', 91.00, 1.70, 'bajar peso',    'intermedio',   1, DATE_ADD(CURDATE(), INTERVAL 2 DAY)),   -- por vencer
 ('Valentina Diaz', '99999999I', '600999999', 52.00, 1.72, 'mantenerse',    'intermedio',   1, DATE_SUB(CURDATE(), INTERVAL 10 DAY)),  -- vencido
 ('Javier Gomez',   '10101010J', '601010101', 84.00, 1.82, 'bajar peso',    'avanzado',     2, DATE_ADD(CURDATE(), INTERVAL 25 DAY));  -- activo
+
+-- Ana renovó cuando le quedaban 5 días: 30 del plan + 5 restantes
+INSERT INTO pagos (socio_id, plan_id, fecha, monto, dias_plan, dias_restantes, vencimiento_nuevo) VALUES
+(1, 1, DATE_SUB(CURDATE(), INTERVAL 40 DAY),  1500.00, 30,  0, DATE_SUB(CURDATE(), INTERVAL 10 DAY)),
+(1, 1, DATE_SUB(CURDATE(), INTERVAL 15 DAY),  1500.00, 30,  5, DATE_ADD(CURDATE(), INTERVAL 20 DAY)),
+(2, 2, DATE_SUB(CURDATE(), INTERVAL 25 DAY),  1000.00, 30,  0, DATE_ADD(CURDATE(), INTERVAL 5 DAY)),
+(3, 3, DATE_SUB(CURDATE(), INTERVAL 93 DAY),  4000.00, 90,  0, DATE_SUB(CURDATE(), INTERVAL 3 DAY)),
+(4, 4, DATE_SUB(CURDATE(), INTERVAL 165 DAY), 14000.00, 365, 0, DATE_ADD(CURDATE(), INTERVAL 200 DAY)),
+(5, 2, DATE_SUB(CURDATE(), INTERVAL 15 DAY),  1000.00, 30,  0, DATE_ADD(CURDATE(), INTERVAL 15 DAY)),
+(6, 1, DATE_SUB(CURDATE(), INTERVAL 28 DAY),  1500.00, 30,  0, DATE_ADD(CURDATE(), INTERVAL 2 DAY)),
+(7, 1, DATE_SUB(CURDATE(), INTERVAL 40 DAY),  1500.00, 30,  0, DATE_SUB(CURDATE(), INTERVAL 10 DAY)),
+(8, 2, DATE_SUB(CURDATE(), INTERVAL 5 DAY),   1000.00, 30,  0, DATE_ADD(CURDATE(), INTERVAL 25 DAY));
 
 INSERT INTO registros_peso (socio_id, fecha, peso) VALUES
 (1, DATE_SUB(CURDATE(), INTERVAL 60 DAY), 72.00),
