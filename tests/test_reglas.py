@@ -286,7 +286,7 @@ class TestBusqueda(unittest.TestCase):  # T2: sesión simulada, sin MySQL
             self.socios.append({
                 "id": i, "nombre": "Ana " + str(i), "ci": str(i), "plan": "Mensual",
                 "fecha_vencimiento": dias_desde_hoy(dias),
-                "fecha_cancelacion": cancelacion, "congelado": congelado,
+                "fecha_cancelacion": cancelacion, "congelado": congelado, "adentro": False,
             })
 
     def test_sin_filtros_oculta_solo_cancelados(self):
@@ -418,7 +418,8 @@ class TestDashboard(unittest.TestCase):  # T6: sesión y consultas simuladas, si
             {"nombre": "Trimestral", "cantidad": 2, "total": Decimal("240.00")},
             {"nombre": "Mensual", "cantidad": 2, "total": Decimal("90.50")},
         ]
-        with patch.object(gimnasio, "consultar", side_effect=[socios, ventas]):
+        # Después de socios y ventas: pagos por mes, entradas por día y personas adentro (T10)
+        with patch.object(gimnasio, "consultar", side_effect=[socios, ventas, [], [], [{"total": 3}]]):
             respuesta = self.cliente.get("/api/dashboard")
         self.assertEqual(respuesta.status_code, 200)
         datos = respuesta.get_json()
@@ -437,14 +438,19 @@ class TestDashboard(unittest.TestCase):  # T6: sesión y consultas simuladas, si
         self.assertEqual(
             [(s["id"], s["dias_sin_entrar"]) for s in datos["en_riesgo"]], [(2, 14), (3, 20), (7, None)]
         )
+        # Gráficos: los meses y días sin datos vienen con 0; T10: ocupación sobre el aforo
+        self.assertEqual(len(datos["ingresos_por_mes"]), gimnasio.MESES_GRAFICO)
+        self.assertEqual(len(datos["entradas_por_dia"]), gimnasio.DIAS_GRAFICO)
+        self.assertEqual(datos["entradas_por_dia"][-1], {"fecha": str(date.today()), "cantidad": 0})
+        self.assertEqual((datos["adentro_ahora"], datos["aforo"]), (3, gimnasio.AFORO))
 
     def test_mes_sin_ventas(self):
-        with patch.object(gimnasio, "consultar", side_effect=[[], []]) as consulta:
+        with patch.object(gimnasio, "consultar", side_effect=[[], [], [], [], [{"total": 0}]]) as consulta:
             datos = self.cliente.get("/api/dashboard").get_json()
         self.assertEqual(datos["ingresos_mes"], 0)
         self.assertIsNone(datos["plan_mas_vendido"])
         # El mes calendario se pasa como parámetros: del día 1 al día 1 del mes siguiente
-        inicio, fin = consulta.call_args.args[1]
+        inicio, fin = consulta.call_args_list[1].args[1]
         self.assertEqual(inicio, date.today().replace(day=1))
         self.assertEqual(fin.day, 1)
         self.assertEqual((fin - timedelta(days=1)).month, inicio.month)

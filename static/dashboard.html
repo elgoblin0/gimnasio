@@ -4,38 +4,65 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gimnasio - Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap">
     <link rel="stylesheet" href="estilos.css">
 </head>
 <body>
     <header>
-        <a href="index.html">&larr; Volver</a>
-        <h1>Dashboard</h1>
-        <div id="sesion"></div>
+        <div class="barra">
+            <a class="marca" href="index.html"><span class="logo"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="6" width="3" height="12" rx="1"/><rect x="16" y="6" width="3" height="12" rx="1"/><path d="M2.5 9.5v5M21.5 9.5v5M8 12h8"/></svg></span> Gimnasio</a>
+            <nav>
+                <a href="index.html">Socios</a>
+                <a class="actual" href="dashboard.html">Dashboard</a>
+                <a class="solo-admin" href="usuarios.html">Usuarios</a>
+            </nav>
+            <div id="sesion"></div>
+        </div>
     </header>
 
     <main>
+        <div class="encabezado">
+            <div>
+                <h1>Dashboard</h1>
+                <p class="subtitulo">Estado de los socios e ingresos de <span id="mes"></span>.</p>
+            </div>
+        </div>
+
         <!-- Aquí aparecen los mensajes de éxito o error -->
         <div id="mensaje"></div>
 
-        <section>
-            <h2>Socios por estado</h2>
-            <!-- Las tarjetas las rellena cargarDashboard() en app.js -->
-            <div id="tarjetas-estado" class="tarjetas"></div>
-        </section>
+        <!-- Los números del mes -->
+        <div class="tarjetas">
+            <div class="tarjeta"><span class="numero" id="ingresos-mes"></span>Ingresos del mes</div>
+            <div class="tarjeta"><span class="numero" id="plan-mas-vendido"></span>Plan más vendido</div>
+            <div class="tarjeta"><span class="numero" id="entradas-semana"></span>Entradas últimos 7 días</div>
+            <div class="tarjeta"><span class="numero" id="socios-activos"></span>Socios activos</div>
+        </div>
 
-        <section>
-            <h2>Este mes (<span id="mes"></span>)</h2>
-            <div class="tarjetas">
-                <div class="tarjeta">
-                    <span class="numero" id="ingresos-mes"></span>
-                    Ingresos
-                </div>
-                <div class="tarjeta">
-                    <span class="numero" id="plan-mas-vendido"></span>
-                    Plan más vendido
-                </div>
-            </div>
-        </section>
+        <!-- Gráficos dibujados con SVG en app.js (sin librerías) -->
+        <div class="columnas">
+            <section>
+                <h2>Ocupación ahora</h2>
+                <p class="nota">Socios que entraron hoy y todavía no salieron. Se actualiza solo cada 30 segundos.</p>
+                <div id="ocupacion" class="medidor"></div>
+            </section>
+            <section>
+                <h2>Entradas por día</h2>
+                <p class="nota">Últimos 28 días.</p>
+                <div id="grafico-entradas" class="grafico"></div>
+            </section>
+            <section>
+                <h2>Ingresos por mes</h2>
+                <p class="nota">Últimos 6 meses. Pasá el mouse por una barra para ver el monto.</p>
+                <div id="grafico-ingresos" class="grafico"></div>
+            </section>
+            <section>
+                <h2>Socios por estado</h2>
+                <!-- Una barra por estado, la rellena barrasPorEstado() en app.js -->
+                <div id="barras-estado" class="barras-estado"></div>
+            </section>
+        </div>
 
         <section>
             <h2>Socios en riesgo (14 días o más sin entrar)</h2>
@@ -64,6 +91,8 @@
         // Al abrir la página: mostrar la sesión y cargar el dashboard
         mostrarSesion();
         cargarDashboard();
+        // La ocupación cambia todo el tiempo: se vuelve a cargar cada 30 segundos
+        setInterval(cargarDashboard, 30000);
     </script>
 </body>
 </html>

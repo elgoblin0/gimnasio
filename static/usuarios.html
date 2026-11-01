@@ -4,16 +4,31 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gimnasio - Usuarios</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap">
     <link rel="stylesheet" href="estilos.css">
 </head>
 <body>
     <header>
-        <a href="index.html">&larr; Volver</a>
-        <h1>Usuarios</h1>
-        <div id="sesion"></div>
+        <div class="barra">
+            <a class="marca" href="index.html"><span class="logo"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="6" width="3" height="12" rx="1"/><rect x="16" y="6" width="3" height="12" rx="1"/><path d="M2.5 9.5v5M21.5 9.5v5M8 12h8"/></svg></span> Gimnasio</a>
+            <nav>
+                <a href="index.html">Socios</a>
+                <a href="dashboard.html">Dashboard</a>
+                <a class="solo-admin actual" href="usuarios.html">Usuarios</a>
+            </nav>
+            <div id="sesion"></div>
+        </div>
     </header>
 
     <main>
+        <div class="encabezado">
+            <div>
+                <h1>Usuarios</h1>
+                <p class="subtitulo">Quién puede entrar al sistema y con qué rol.</p>
+            </div>
+        </div>
+
         <!-- Aquí aparecen los mensajes de éxito o error -->
         <div id="mensaje"></div>
 
@@ -42,7 +57,7 @@
                 <div class="campos">
                     <label>Nombre <input id="usuario-nombre" required></label>
                     <label>Usuario <input id="usuario-usuario" required></label>
-                    <label>Contraseña (8 o más caracteres)
+                    <label>Contraseña (mínimo 8)
                         <input id="usuario-clave" type="password" autocomplete="new-password" required>
                     </label>
                     <label>Rol
