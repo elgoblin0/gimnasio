@@ -79,8 +79,10 @@ gimnasio/
 |---|---|
 | `planes` | Nombre, duración en días, cuántos días por semana se puede entrar (7 = libre) y precio. |
 | `rutinas` | Una rutina por cada combinación de objetivo + nivel. |
+| `rutina_ejercicios` | Los ejercicios de cada rutina: 3 días con 3 ejercicios cada uno. |
 | `socios` | Datos del socio, su plan y la fecha de vencimiento. |
-| `asistencias` | Una fila por cada entrada al gimnasio. |
+| `asistencias` | Una fila por cada entrada al gimnasio, con la rutina y el día que le tocaron. |
+| `ejercicios_realizados` | Qué ejercicios hizo el socio en cada entrada. |
 | `registros_peso` | Historial de peso para ver el progreso. |
 | `pagos` | Una fila por cada pago: monto, días del plan y días que le quedaban al socio. |
 | `congelamientos` | Una fila por cada vez que un socio congela su plan, con su inicio y su fin. |
@@ -100,6 +102,10 @@ Todas están en `app.py`.
 | 7 | Días extra: quien paga antes de vencer recibe los días del plan más los que le quedaban (5 restantes + plan de 30 = vence en 35 días). Cada pago registra ese desglose. |
 | 8 | Cancelar: conserva el historial y oculta al socio de la lista. Si renueva, vuelve con el plan contado desde hoy, sin los días que le quedaban. |
 | 9 | Congelar: de 1 a 30 días, una vez por período, solo con el plan en uso. Los días se suman al vencimiento de inmediato. Si vuelve antes, se restan los no usados. |
+| 11 | Rutina en secuencia: cada check-in aceptado pasa al día siguiente de su rutina, y después del Día 3 vuelve al Día 1. Si cambia de rutina, empieza en el Día 1. |
+| 12 | Cumplimiento: ejercicios hechos / asignados en los últimos 28 días, solo con la rutina actual. |
+| 13 | Asistencia: entradas de los últimos 28 días / (días por semana × 4), con un máximo de 100%. Un plan libre cuenta como 3 días por semana. |
+| 14 | Subir de nivel: se sugiere con 8 entradas o más en 28 días y 80% o más de cumplimiento, salvo en avanzado. Lo confirma una persona. |
 
 ## Cómo probar las reglas con los datos de ejemplo
 
@@ -107,8 +113,8 @@ Las fechas de ejemplo se calculan a partir del día en que se importa el `.sql`,
 
 | Socio | Qué se puede probar |
 |---|---|
-| Ana Lopez | Activa. El check-in funciona. Va bien bajando de peso (72 → 68 kg). En sus pagos se ve una renovación con 5 días restantes. |
-| Carlos Ruiz | Por vencer (5 días). Plan de 3 días/semana y ya entró 2 veces: el primer check-in funciona, el segundo dice "Ya entró hoy". |
+| Ana Lopez | Activa. El check-in funciona. Va bien bajando de peso (72 → 68 kg). En sus pagos se ve una renovación con 5 días restantes. Con 8 entradas y 100% de cumplimiento, se le sugiere subir de nivel. |
+| Carlos Ruiz | Por vencer (5 días). Plan de 3 días/semana y ya entró 2 veces: el primer check-in funciona, el segundo dice "Ya entró hoy". Hizo parte de su rutina: 67% de cumplimiento. |
 | Maria Gomez | Vencida. El check-in se rechaza. Al renovar, el plan cuenta desde hoy. |
 | Luis Fernandez | Activo (plan anual). Quiere bajar peso pero subió (88 → 90 kg): "No va bien". |
 | Diego Pereira | Activo. Quiere mantenerse y se movió 1 kg (80 → 81): "Va bien". IMC en Sobrepeso. |
@@ -130,6 +136,7 @@ Si ya tenías la base creada y no quieres perder los datos, en vez de reimportar
 | `migraciones/002_checkin_unico.sql` | Impide dos entradas del mismo socio el mismo día. Si ya hay duplicados, conserva la entrada más antigua y borra las demás. Se puede repetir sin problema. |
 | `migraciones/003_pagos.sql` | Agrega el precio de los planes y la tabla de pagos. Se puede repetir sin problema. |
 | `migraciones/005_cancelar_congelar.sql` | Agrega la fecha de cancelación y la tabla de congelamientos. Se puede repetir sin problema. |
+| `migraciones/006_rutina_por_dia.sql` | Agrega los ejercicios por día y lo que hizo cada socio. Las entradas anteriores quedan sin rutina. Se puede repetir sin problema. |
 
 ## API (lo que llama `app.js`)
 
@@ -148,6 +155,8 @@ Si ya tenías la base creada y no quieres perder los datos, en vez de reimportar
 | POST | `/api/socios/<id>/cancelar` | Cancelar un socio |
 | POST | `/api/socios/<id>/congelar` | Congelar el plan unos días |
 | POST | `/api/socios/<id>/descongelar` | Terminar el congelamiento antes de tiempo |
+| POST, DELETE | `/api/socios/<id>/asistencias/<id>/ejercicios/<id>` | Marcar o desmarcar un ejercicio de una entrada |
+| POST | `/api/socios/<id>/subir-nivel` | Confirmar la subida de nivel sugerida |
 
 ## Problemas frecuentes
 

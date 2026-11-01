@@ -61,6 +61,32 @@
         </div>
 
         <section>
+            <h2>Seguimiento de la rutina</h2>
+            <p id="sugerencia-nivel" class="mensaje ok">
+                Cumple las condiciones para subir a <span id="nivel-sugerido"></span>.
+                <button onclick="subirNivel()">Subir de nivel</button>
+            </p>
+            <div class="columnas">
+                <div>
+                    <p><strong id="dia-actual"></strong></p>
+                    <ul id="ejercicios-del-dia"></ul>
+                </div>
+                <div>
+                    <p>Cumplimiento de la rutina (28 días): <strong id="cumplimiento"></strong></p>
+                    <p>Asistencia (28 días): <strong id="asistencia"></strong></p>
+                </div>
+            </div>
+            <div class="tabla-scroll">
+                <table>
+                    <thead>
+                        <tr><th>Fecha</th><th>Rutina</th><th>Ejercicios (qué hizo y qué no)</th></tr>
+                    </thead>
+                    <tbody id="tabla-entradas"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section>
             <h2>Editar datos</h2>
             <form onsubmit="guardarEdicion(event)">
                 <div class="campos">

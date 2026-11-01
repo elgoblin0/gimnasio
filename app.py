@@ -28,6 +28,13 @@ PRECIO_MINIMO = 0.01
 PRECIO_MAXIMO = 999999.99
 CONGELAMIENTO_MAXIMO = 30
 
+# Rutina por día (REGLAS 11 a 14)
+DIAS_POR_RUTINA = 3
+VENTANA_DIAS = 28
+OBJETIVO_PLAN_LIBRE = 3  # días por semana que se esperan de un plan libre
+ENTRADAS_PARA_SUBIR = 8
+CUMPLIMIENTO_PARA_SUBIR = 80
+
 # Columna calculada: 1 si hoy el socio está dentro de un congelamiento (REGLA 9)
 SQL_CONGELADO = (
     "EXISTS(SELECT 1 FROM congelamientos c WHERE c.socio_id = s.id "
@@ -265,6 +272,132 @@ def calcular_progreso(objetivo, peso_inicial, peso_actual):
     return diferencia, resultado
 
 
+# REGLA 11: día de rutina que sigue al último que hizo
+# Sin entradas previas con esa rutina empieza en el Día 1. Después del último, vuelve al 1.
+def calcular_siguiente_dia(ultimo_dia):
+    if ultimo_dia is None or ultimo_dia >= DIAS_POR_RUTINA:
+        return 1
+    return ultimo_dia + 1
+
+
+# REGLA 12: porcentaje de ejercicios hechos sobre los asignados
+def calcular_cumplimiento(realizados, asignados):
+    if asignados == 0:
+        return 0
+    return round(100 * realizados / asignados)
+
+
+# REGLA 13: entradas de la ventana contra las esperadas según el plan (máximo 100)
+def calcular_asistencia(entradas, dias_por_semana):
+    if dias_por_semana == 7:
+        dias_por_semana = OBJETIVO_PLAN_LIBRE
+    return min(round(100 * entradas / (dias_por_semana * 4)), 100)
+
+
+# REGLA 14: nivel que se sugiere, o None si todavía no corresponde subir
+def calcular_nivel_sugerido(nivel, entradas, cumplimiento):
+    if entradas < ENTRADAS_PARA_SUBIR or cumplimiento < CUMPLIMIENTO_PARA_SUBIR:
+        return None
+    if nivel not in NIVELES or nivel == NIVELES[-1]:
+        return None
+    return NIVELES[NIVELES.index(nivel) + 1]
+
+
+# REGLA 5: rutina según objetivo y nivel
+def buscar_rutina(objetivo, nivel):
+    return consultar_uno(
+        "SELECT id, nombre, descripcion FROM rutinas WHERE objetivo = %s AND nivel = %s",
+        (objetivo, nivel),
+    )
+
+
+def buscar_ultimo_dia(socio_id, rutina_id):
+    # Último día de esa rutina que hizo el socio (o None)
+    fila = consultar_uno(
+        "SELECT dia_rutina FROM asistencias WHERE socio_id = %s AND rutina_id = %s "
+        "ORDER BY fecha_hora DESC, id DESC LIMIT 1",
+        (socio_id, rutina_id),
+    )
+    if fila is None:
+        return None
+    return fila["dia_rutina"]
+
+
+# Ejercicios de un día de rutina. Si se pasa una entrada, indica cuáles se hicieron en ella.
+def buscar_ejercicios(rutina_id, dia, asistencia_id=None):
+    ejercicios = consultar(
+        "SELECT e.id, e.nombre, e.series_repeticiones, er.id IS NOT NULL AS hecho "
+        "FROM rutina_ejercicios e "
+        "LEFT JOIN ejercicios_realizados er ON er.ejercicio_id = e.id AND er.asistencia_id = %s "
+        "WHERE e.rutina_id = %s AND e.dia = %s ORDER BY e.orden",
+        (asistencia_id, rutina_id, dia),
+    )
+    for ejercicio in ejercicios:
+        ejercicio["hecho"] = bool(ejercicio["hecho"])
+    return ejercicios
+
+
+# Junta todo lo que muestra la ficha sobre la rutina (REGLAS 11 a 14)
+def armar_seguimiento(socio_id, nivel, dias_por_semana, rutina):
+    # Entradas de la ventana, de la más reciente a la más antigua
+    filas = consultar(
+        "SELECT a.id, a.fecha, a.fecha = CURDATE() AS es_hoy, a.rutina_id, a.dia_rutina, r.nombre AS rutina "
+        "FROM asistencias a LEFT JOIN rutinas r ON a.rutina_id = r.id "
+        "WHERE a.socio_id = %s AND a.fecha_hora >= NOW() - INTERVAL %s DAY "
+        "ORDER BY a.fecha_hora DESC, a.id DESC",
+        (socio_id, VENTANA_DIAS),
+    )
+
+    entradas = []
+    entradas_rutina_actual = 0
+    realizados = 0
+    asignados = 0
+    dia_de_hoy = None
+
+    for fila in filas:
+        # Las entradas anteriores a esta función no tienen rutina
+        if fila["rutina_id"] is None:
+            continue
+
+        ejercicios = buscar_ejercicios(fila["rutina_id"], fila["dia_rutina"], fila["id"])
+        hechos = sum(1 for ejercicio in ejercicios if ejercicio["hecho"])
+        entradas.append({
+            "id": fila["id"],
+            "fecha": str(fila["fecha"]),
+            "rutina": fila["rutina"],
+            "dia": fila["dia_rutina"],
+            "ejercicios": ejercicios,
+        })
+
+        # El cumplimiento solo cuenta la rutina actual
+        if rutina is not None and fila["rutina_id"] == rutina["id"]:
+            entradas_rutina_actual += 1
+            realizados += hechos
+            asignados += len(ejercicios)
+            if fila["es_hoy"]:
+                dia_de_hoy = fila["dia_rutina"]
+
+    cumplimiento = calcular_cumplimiento(realizados, asignados)
+
+    # El día que le toca: el de hoy si ya entró; si no, el siguiente
+    dia_actual = None
+    ejercicios_del_dia = []
+    if rutina is not None:
+        dia_actual = dia_de_hoy
+        if dia_actual is None:
+            dia_actual = calcular_siguiente_dia(buscar_ultimo_dia(socio_id, rutina["id"]))
+        ejercicios_del_dia = buscar_ejercicios(rutina["id"], dia_actual)
+
+    return {
+        "dia_actual": dia_actual,
+        "ejercicios_del_dia": ejercicios_del_dia,
+        "entradas": entradas,
+        "cumplimiento": cumplimiento,
+        "asistencia": calcular_asistencia(len(filas), dias_por_semana),
+        "nivel_sugerido": calcular_nivel_sugerido(nivel, entradas_rutina_actual, cumplimiento),
+    }
+
+
 # Cuenta las entradas del socio en los últimos 7 días (usado en la regla 3)
 def contar_entradas_semana(socio_id):
     fila = consultar_uno(
@@ -408,6 +541,11 @@ def eliminar_socio(socio_id):
 
     # Primero las tablas que dependen del socio (por las claves foráneas)
     with transaccion() as cursor:
+        cursor.execute(
+            "DELETE er FROM ejercicios_realizados er "
+            "JOIN asistencias a ON er.asistencia_id = a.id WHERE a.socio_id = %s",
+            (socio_id,),
+        )
         cursor.execute("DELETE FROM asistencias WHERE socio_id = %s", (socio_id,))
         cursor.execute("DELETE FROM registros_peso WHERE socio_id = %s", (socio_id,))
         cursor.execute("DELETE FROM pagos WHERE socio_id = %s", (socio_id,))
@@ -465,10 +603,7 @@ def ver_socio(socio_id):
     imc, categoria = calcular_imc(peso, altura)
 
     # REGLA 5: rutina según objetivo y nivel
-    rutina = consultar_uno(
-        "SELECT nombre, descripcion FROM rutinas WHERE objetivo = %s AND nivel = %s",
-        (socio["objetivo"], socio["nivel"]),
-    )
+    rutina = buscar_rutina(socio["objetivo"], socio["nivel"])
 
     # Historial de peso, del más antiguo al más reciente
     historial = consultar(
@@ -518,6 +653,7 @@ def ver_socio(socio_id):
         "imc": imc,
         "categoria_imc": categoria,
         "rutina": rutina,
+        "seguimiento": armar_seguimiento(socio_id, socio["nivel"], socio["dias_por_semana"], rutina),
         "progreso": progreso,
         "historial_peso": historial,
         "pagos": pagos,
@@ -528,7 +664,7 @@ def ver_socio(socio_id):
 @app.route("/api/socios/<int:socio_id>/checkin", methods=["POST"])
 def hacer_checkin(socio_id):
     socio = consultar_uno(
-        "SELECT s.fecha_vencimiento, s.fecha_cancelacion, p.dias_por_semana, " + SQL_CONGELADO +
+        "SELECT s.fecha_vencimiento, s.fecha_cancelacion, s.objetivo, s.nivel, p.dias_por_semana, " + SQL_CONGELADO +
         " FROM socios s JOIN planes p ON s.plan_id = p.id "
         "WHERE s.id = %s",
         (socio_id,),
@@ -558,12 +694,26 @@ def hacer_checkin(socio_id):
     if contar_entradas_semana(socio_id) >= socio["dias_por_semana"]:
         return error("Ya usó sus " + str(socio["dias_por_semana"]) + " días de los últimos 7")
 
+    # REGLA 11: la entrada guarda la rutina actual y el día que le toca
+    rutina = buscar_rutina(socio["objetivo"], socio["nivel"])
+    rutina_id = None
+    dia = None
+    if rutina is not None:
+        rutina_id = rutina["id"]
+        dia = calcular_siguiente_dia(buscar_ultimo_dia(socio_id, rutina_id))
+
     # Si dos pedidos llegan a la vez, el UNIQUE de la tabla rechaza el segundo
     try:
-        ejecutar("INSERT INTO asistencias (socio_id, fecha_hora) VALUES (%s, NOW())", (socio_id,))
+        ejecutar(
+            "INSERT INTO asistencias (socio_id, fecha_hora, rutina_id, dia_rutina) VALUES (%s, NOW(), %s, %s)",
+            (socio_id, rutina_id, dia),
+        )
     except mysql.connector.IntegrityError:
         return error("Ya entró hoy")
-    return jsonify({"mensaje": "Entrada registrada"})
+
+    if dia is None:
+        return jsonify({"mensaje": "Entrada registrada"})
+    return jsonify({"mensaje": "Entrada registrada: hoy le toca el Día " + str(dia)})
 
 
 # 8. Renovar plan (se puede cambiar de plan)
@@ -695,6 +845,56 @@ def descongelar_plan(socio_id):
             (socio["fecha_vencimiento"] - timedelta(days=dias_no_usados), socio_id),
         )
     return jsonify({"mensaje": "Plan descongelado. Se restaron " + str(dias_no_usados) + " días no usados"})
+
+
+# 13. Marcar o desmarcar un ejercicio de una entrada (REGLA 12)
+@app.route("/api/socios/<int:socio_id>/asistencias/<int:asistencia_id>/ejercicios/<int:ejercicio_id>",
+           methods=["POST", "DELETE"])
+def marcar_ejercicio(socio_id, asistencia_id, ejercicio_id):
+    # La entrada debe ser del socio, y el ejercicio de la rutina y el día de esa entrada
+    valido = consultar_uno(
+        "SELECT a.id FROM asistencias a "
+        "JOIN rutina_ejercicios e ON e.rutina_id = a.rutina_id AND e.dia = a.dia_rutina "
+        "WHERE a.id = %s AND a.socio_id = %s AND e.id = %s",
+        (asistencia_id, socio_id, ejercicio_id),
+    )
+    if valido is None:
+        return error("Ese ejercicio no corresponde a esa entrada", 404)
+
+    if request.method == "POST":
+        # INSERT IGNORE: marcar dos veces no es un error
+        ejecutar(
+            "INSERT IGNORE INTO ejercicios_realizados (asistencia_id, ejercicio_id) VALUES (%s, %s)",
+            (asistencia_id, ejercicio_id),
+        )
+        return jsonify({"mensaje": "Ejercicio marcado"})
+
+    ejecutar(
+        "DELETE FROM ejercicios_realizados WHERE asistencia_id = %s AND ejercicio_id = %s",
+        (asistencia_id, ejercicio_id),
+    )
+    return jsonify({"mensaje": "Ejercicio desmarcado"})
+
+
+# 14. Subir de nivel (REGLA 14): lo confirma una persona, y se vuelve a comprobar la regla
+@app.route("/api/socios/<int:socio_id>/subir-nivel", methods=["POST"])
+def subir_nivel(socio_id):
+    socio = consultar_uno(
+        "SELECT s.objetivo, s.nivel, p.dias_por_semana "
+        "FROM socios s JOIN planes p ON s.plan_id = p.id WHERE s.id = %s",
+        (socio_id,),
+    )
+    if socio is None:
+        return error("El socio no existe", 404)
+
+    rutina = buscar_rutina(socio["objetivo"], socio["nivel"])
+    seguimiento = armar_seguimiento(socio_id, socio["nivel"], socio["dias_por_semana"], rutina)
+    nivel_nuevo = seguimiento["nivel_sugerido"]
+    if nivel_nuevo is None:
+        return error("Todavía no cumple las condiciones para subir de nivel")
+
+    ejecutar("UPDATE socios SET nivel = %s WHERE id = %s", (nivel_nuevo, socio_id))
+    return jsonify({"mensaje": "Nivel actualizado a " + nivel_nuevo})
 
 
 # 9. Registrar un nuevo peso
