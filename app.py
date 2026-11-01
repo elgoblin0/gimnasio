@@ -619,6 +619,7 @@ def eliminar_socio(socio_id):
         cursor.execute("DELETE FROM registros_peso WHERE socio_id = %s", (socio_id,))
         cursor.execute("DELETE FROM pagos WHERE socio_id = %s", (socio_id,))
         cursor.execute("DELETE FROM congelamientos WHERE socio_id = %s", (socio_id,))
+        cursor.execute("DELETE FROM auditoria_socios WHERE socio_id = %s", (socio_id,))
         cursor.execute("DELETE FROM socios WHERE id = %s", (socio_id,))
     return jsonify({"mensaje": "Socio eliminado correctamente"})
 
@@ -704,6 +705,21 @@ def ver_socio(socio_id):
         pago["monto"] = float(pago["monto"])
         pago["vencimiento_nuevo"] = str(pago["vencimiento_nuevo"])
 
+    # T4: cambios de plan o vencimiento, incluidos congelar y descongelar.
+    auditoria = consultar(
+        "SELECT a.plan_anterior, pa.nombre AS nombre_plan_anterior, "
+        "a.plan_nuevo, pn.nombre AS nombre_plan_nuevo, "
+        "a.vencimiento_anterior, a.vencimiento_nuevo, a.fecha_hora "
+        "FROM auditoria_socios a "
+        "JOIN planes pa ON pa.id = a.plan_anterior "
+        "JOIN planes pn ON pn.id = a.plan_nuevo "
+        "WHERE a.socio_id = %s ORDER BY a.fecha_hora DESC, a.id DESC",
+        (socio_id,),
+    )
+    for cambio in auditoria:
+        for campo in ("vencimiento_anterior", "vencimiento_nuevo", "fecha_hora"):
+            cambio[campo] = str(cambio[campo])
+
     return jsonify({
         "id": socio["id"],
         "nombre": socio["nombre"],
@@ -726,6 +742,7 @@ def ver_socio(socio_id):
         "progreso": progreso,
         "historial_peso": historial,
         "pagos": pagos,
+        "auditoria": auditoria,
     })
 
 
@@ -1075,13 +1092,12 @@ def registrar_peso(socio_id):
         return error(mensaje)
     peso = float(datos["peso"])
 
-    # El historial y el peso actual se guardan juntos
+    # El trigger copia el peso a socios dentro de esta misma transacción.
     with transaccion() as cursor:
         cursor.execute(
             "INSERT INTO registros_peso (socio_id, fecha, peso) VALUES (%s, %s, %s)",
             (socio_id, date.today(), peso),
         )
-        cursor.execute("UPDATE socios SET peso = %s WHERE id = %s", (peso, socio_id))
     return jsonify({"mensaje": "Peso registrado"})
 
 
