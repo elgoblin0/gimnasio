@@ -39,6 +39,8 @@ ALTURA_MINIMA = 0.5
 ALTURA_MAXIMA = 2.5
 PESO_MINIMO = 1
 PESO_MAXIMO = 500
+IMC_MANUAL_MINIMO = 10
+IMC_MANUAL_MAXIMO = 70
 PRECIO_MINIMO = 0.01
 PRECIO_MAXIMO = 999999.99
 CONGELAMIENTO_MAXIMO = 30
@@ -283,18 +285,38 @@ def elegir_plan_mas_vendido(ventas):
     return min(ventas, key=lambda nombre: (-ventas[nombre], nombre))
 
 
+# REGLA 4: categoría de un IMC
+def categoria_imc(imc):
+    if imc < 18.5:
+        return "Bajo peso"
+    if imc < 25:
+        return "Normal"
+    if imc < 30:
+        return "Sobrepeso"
+    return "Obesidad"
+
+
 # REGLA 4: IMC = peso / altura² y su categoría
 def calcular_imc(peso, altura):
     imc = peso / (altura * altura)
-    if imc < 18.5:
-        categoria = "Bajo peso"
-    elif imc < 25:
-        categoria = "Normal"
-    elif imc < 30:
-        categoria = "Sobrepeso"
-    else:
-        categoria = "Obesidad"
-    return round(imc, 2), categoria  # se redondea al final para no cambiar la categoría
+    return round(imc, 2), categoria_imc(imc)  # se redondea al final para no cambiar la categoría
+
+
+# T9: si el administrador cargó un IMC manual, reemplaza al calculado.
+# Devuelve el IMC, su categoría y si es manual.
+def elegir_imc(peso, altura, imc_manual):
+    if imc_manual is not None:
+        return imc_manual, categoria_imc(imc_manual), True
+    imc, categoria = calcular_imc(peso, altura)
+    return imc, categoria, False
+
+
+# T9: devuelve el mensaje de error, o None si el IMC manual está bien
+def validar_imc_manual(valor):
+    imc = leer_numero(valor)
+    if imc is None or imc < IMC_MANUAL_MINIMO or imc > IMC_MANUAL_MAXIMO:
+        return "El IMC manual debe estar entre " + str(IMC_MANUAL_MINIMO) + " y " + str(IMC_MANUAL_MAXIMO)
+    return None
 
 
 # REGLA 6: comparar el primer peso con el último según el objetivo
@@ -656,7 +678,8 @@ def eliminar_socio(socio_id):
 def editar_socio(socio_id):
     datos = leer_json()
 
-    if not socio_existe(socio_id):
+    actual = consultar_uno("SELECT altura FROM socios WHERE id = %s", (socio_id,))
+    if actual is None:
         return error("El socio no existe", 404)
 
     mensaje = validar_datos_socio(datos, ["nombre", "ci", "altura", "objetivo", "nivel"])
@@ -664,14 +687,19 @@ def editar_socio(socio_id):
         return error(mensaje)
     altura = float(datos["altura"])
 
+    # T9: si cambia la altura, el IMC manual queda desactualizado y se borra.
+    # La columna guarda 2 decimales, así que se compara redondeado.
+    sql = "UPDATE socios SET nombre = %s, ci = %s, telefono = %s, altura = %s, objetivo = %s, nivel = %s"
+    if round(altura, 2) != float(actual["altura"]):
+        sql += ", imc_manual = NULL"
+
     # El CI no puede ser el de otro socio (el suyo propio sí)
     if consultar_uno("SELECT id FROM socios WHERE ci = %s AND id <> %s", (datos["ci"], socio_id)):
         return error("Ya existe otro socio con ese CI")
 
     try:
         ejecutar(
-            "UPDATE socios SET nombre = %s, ci = %s, telefono = %s, altura = %s, objetivo = %s, nivel = %s "
-            "WHERE id = %s",
+            sql + " WHERE id = %s",
             (datos["nombre"], datos["ci"], datos.get("telefono", ""), altura,
              datos["objetivo"], datos["nivel"], socio_id),
         )
@@ -696,8 +724,11 @@ def ver_socio(socio_id):
     peso = float(socio["peso"])
     altura = float(socio["altura"])
 
-    # REGLA 4: IMC
-    imc, categoria = calcular_imc(peso, altura)
+    # REGLA 4: IMC, o el manual si el administrador lo cargó (T9)
+    imc_manual = None
+    if socio["imc_manual"] is not None:
+        imc_manual = float(socio["imc_manual"])
+    imc, categoria, es_manual = elegir_imc(peso, altura, imc_manual)
 
     # REGLA 5: rutina según objetivo y nivel
     rutina = buscar_rutina(socio["objetivo"], socio["nivel"])
@@ -764,6 +795,7 @@ def ver_socio(socio_id):
         "entradas_semana": contar_entradas_semana(socio_id),
         "imc": imc,
         "categoria_imc": categoria,
+        "imc_manual": es_manual,
         "rutina": rutina,
         "seguimiento": armar_seguimiento(socio_id, socio["nivel"], socio["dias_por_semana"], rutina),
         "progreso": progreso,
@@ -1175,12 +1207,42 @@ def registrar_peso(socio_id):
     peso = float(datos["peso"])
 
     # El trigger copia el peso a socios dentro de esta misma transacción.
+    # T9: con un peso nuevo, el IMC manual queda desactualizado y se borra.
     with transaccion() as cursor:
         cursor.execute(
             "INSERT INTO registros_peso (socio_id, fecha, peso) VALUES (%s, %s, %s)",
             (socio_id, date.today(), peso),
         )
+        cursor.execute("UPDATE socios SET imc_manual = NULL WHERE id = %s", (socio_id,))
     return jsonify({"mensaje": "Peso registrado"})
+
+
+# 22. Guardar un IMC manual (T9): solo el administrador, de 10 a 70
+@app.route("/api/socios/<int:socio_id>/imc", methods=["PUT"])
+@solo_admin
+def guardar_imc_manual(socio_id):
+    datos = leer_json()
+
+    if not socio_existe(socio_id):
+        return error("El socio no existe", 404)
+
+    mensaje = validar_imc_manual(datos.get("imc"))
+    if mensaje:
+        return error(mensaje)
+
+    ejecutar("UPDATE socios SET imc_manual = %s WHERE id = %s", (round(float(datos["imc"]), 2), socio_id))
+    return jsonify({"mensaje": "IMC manual guardado"})
+
+
+# 23. Volver al IMC calculado (T9)
+@app.route("/api/socios/<int:socio_id>/imc", methods=["DELETE"])
+@solo_admin
+def borrar_imc_manual(socio_id):
+    if not socio_existe(socio_id):
+        return error("El socio no existe", 404)
+
+    ejecutar("UPDATE socios SET imc_manual = NULL WHERE id = %s", (socio_id,))
+    return jsonify({"mensaje": "Se volvió al IMC calculado"})
 
 
 if __name__ == "__main__":

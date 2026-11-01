@@ -462,7 +462,13 @@ function mostrarPlan(socio) {
 function mostrarSalud(socio) {
     document.getElementById("peso").textContent = socio.peso;
     document.getElementById("altura").textContent = socio.altura;
-    document.getElementById("imc").textContent = socio.imc + " (" + socio.categoria_imc + ")";
+    // T9: el IMC manual se indica como tal y se puede volver al calculado
+    let imc = socio.imc + " (" + socio.categoria_imc + ")";
+    if (socio.imc_manual) {
+        imc += " - manual";
+    }
+    document.getElementById("imc").textContent = imc;
+    document.getElementById("boton-imc-calculado").hidden = !socio.imc_manual;
     // Un socio con datos antiguos puede no tener una rutina que le corresponda
     if (socio.rutina === null) {
         document.getElementById("rutina-nombre").textContent = "Sin rutina asignada";
@@ -679,4 +685,22 @@ async function registrarPeso() {
         document.getElementById("nuevo-peso").value = "";
         cargarFicha();
     }
+}
+
+// Guardar un IMC manual (T9, solo administrador)
+async function guardarImcManual() {
+    const datos = { imc: document.getElementById("imc-manual").value };
+    const resultado = await llamarApi("/api/socios/" + idDeLaUrl() + "/imc", "PUT", datos);
+    mostrarResultado(resultado);
+    if (resultado.ok) {
+        document.getElementById("imc-manual").value = "";
+        cargarFicha();
+    }
+}
+
+// Volver al IMC calculado con el peso y la altura (T9)
+async function volverImcCalculado() {
+    const resultado = await llamarApi("/api/socios/" + idDeLaUrl() + "/imc", "DELETE");
+    mostrarResultado(resultado);
+    cargarFicha();
 }

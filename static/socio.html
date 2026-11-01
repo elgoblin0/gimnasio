@@ -52,6 +52,14 @@
                 <p>Peso: <span id="peso"></span> kg</p>
                 <p>Altura: <span id="altura"></span> m</p>
                 <p>IMC: <span id="imc"></span></p>
+                <!-- T9: solo el administrador puede cargar un IMC manual -->
+                <div class="solo-admin">
+                    <label>IMC manual (10 a 70)
+                        <input id="imc-manual" type="number" min="10" max="70" step="0.01">
+                    </label>
+                    <button onclick="guardarImcManual()">Guardar IMC manual</button>
+                    <button id="boton-imc-calculado" hidden onclick="volverImcCalculado()">Volver al IMC calculado</button>
+                </div>
             </section>
 
             <section>

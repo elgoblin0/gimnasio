@@ -111,6 +111,23 @@ class TestImc(unittest.TestCase):  # REGLA 4
         self.assertEqual(gimnasio.calcular_imc(24.996, 1), (25.0, "Normal"))
 
 
+class TestImcManual(unittest.TestCase):  # T9
+    def test_el_manual_reemplaza_al_calculado(self):
+        # 81 kg y 1.78 m dan 25.56 (Sobrepeso); el manual 24.8 es Normal
+        self.assertEqual(gimnasio.elegir_imc(81, 1.78, 24.8), (24.8, "Normal", True))
+
+    def test_sin_manual_se_calcula(self):
+        self.assertEqual(gimnasio.elegir_imc(81, 1.78, None), (25.56, "Sobrepeso", False))
+
+    def test_limites_del_valor_manual(self):
+        for valor in [10, "10", 70, 24.8]:
+            with self.subTest(valor=valor):
+                self.assertIsNone(gimnasio.validar_imc_manual(valor))
+        for valor in [9.99, 70.01, "abc", "", None, True, "nan"]:
+            with self.subTest(valor=valor):
+                self.assertEqual(gimnasio.validar_imc_manual(valor), "El IMC manual debe estar entre 10 y 70")
+
+
 class TestProgreso(unittest.TestCase):  # REGLA 6
     def test_casos(self):
         casos = [
@@ -458,6 +475,8 @@ class TestPermisos(unittest.TestCase):  # REGLA 15
             ("get", "/api/usuarios"),
             ("post", "/api/usuarios"),
             ("patch", "/api/usuarios/1"),
+            ("put", "/api/socios/1/imc"),
+            ("delete", "/api/socios/1/imc"),
         ]
         for metodo, ruta in casos:
             with self.subTest(ruta=ruta):

@@ -82,6 +82,7 @@ CREATE TABLE socios (
     plan_id INT NOT NULL,
     fecha_vencimiento DATE NOT NULL,
     fecha_cancelacion DATE NULL,
+    imc_manual DECIMAL(4,2) NULL,  -- T9: si tiene valor, reemplaza al IMC calculado
     FOREIGN KEY (plan_id) REFERENCES planes(id)
 );
 
@@ -314,6 +315,9 @@ INSERT INTO socios (nombre, ci, telefono, peso, altura, objetivo, nivel, plan_id
 
 -- Paula canceló con 10 días sin usar
 UPDATE socios SET fecha_cancelacion = DATE_SUB(CURDATE(), INTERVAL 5 DAY) WHERE id = 9;
+
+-- Diego tiene un IMC manual (T9): el calculado da Sobrepeso, el manual da Normal
+UPDATE socios SET imc_manual = 24.80 WHERE id = 5;
 
 -- Martin congeló 14 días hace 2 días: ya están sumados a su vencimiento
 INSERT INTO congelamientos (socio_id, fecha_inicio, fecha_fin) VALUES

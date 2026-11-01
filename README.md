@@ -124,7 +124,7 @@ Las reglas están en `app.py`. Los dos triggers de T4 están en `base_datos.sql`
 | 1 | Al dar de alta o renovar se calcula el vencimiento. Si sigue activo, se suma a lo que le queda; si no, desde hoy. |
 | 2 | Estado del socio, en este orden: Cancelado / Congelado / Vencido / Por vencer (7 días o menos) / Activo. |
 | 3 | Check-in: se rechaza si el socio está cancelado o congelado, si el plan está vencido, si ya entró hoy o si ya usó sus días por semana (últimos 7 días). La base de datos también impide dos entradas el mismo día. |
-| 4 | IMC = peso / altura², con su categoría. |
+| 4 | IMC = peso / altura², con su categoría. Si el administrador cargó un IMC manual, se usa ese (T9). |
 | 5 | Rutina asignada según objetivo + nivel. |
 | 6 | Progreso: primer peso vs último según el objetivo (mantenerse = 2 kg o menos de diferencia). |
 | 7 | Días extra: quien paga antes de vencer recibe los días del plan más los que le quedaban (5 restantes + plan de 30 = vence en 35 días). Cada pago registra ese desglose. |
@@ -135,7 +135,7 @@ Las reglas están en `app.py`. Los dos triggers de T4 están en `base_datos.sql`
 | 12 | Cumplimiento: ejercicios hechos / asignados en los últimos 28 días, solo con la rutina actual. |
 | 13 | Asistencia: entradas de los últimos 28 días / (días por semana × 4), con un máximo de 100%. Un plan libre cuenta como 3 días por semana. |
 | 14 | Subir de nivel: se sugiere con 8 entradas o más en 28 días y 80% o más de cumplimiento, salvo en avanzado. Lo confirma una persona. |
-| 15 | Acceso: sin sesión, la API responde 401. Recepción no puede eliminar socios, cambiar precios ni gestionar usuarios, y la API responde 403. Un administrador no puede desactivarse a sí mismo. |
+| 15 | Acceso: sin sesión, la API responde 401. Recepción no puede eliminar socios, cambiar precios, cargar el IMC manual ni gestionar usuarios, y la API responde 403. Un administrador no puede desactivarse a sí mismo. |
 
 ## Cómo probar las reglas con los datos de ejemplo
 
@@ -147,7 +147,7 @@ Las fechas de ejemplo se calculan a partir del día en que se importa el `.sql`,
 | Carlos Ruiz | Por vencer (5 días). Plan de 3 días/semana y ya entró 2 veces: el primer check-in funciona, el segundo dice "Ya entró hoy". Hizo parte de su rutina: 67% de cumplimiento. |
 | Maria Gomez | Vencida. El check-in se rechaza. Al renovar, el plan cuenta desde hoy. |
 | Luis Fernandez | Activo (plan anual). Quiere bajar peso pero subió (88 → 90 kg): "No va bien". Nunca entró y pagó hace 165 días: aparece en riesgo en el dashboard. |
-| Diego Pereira | Activo. Quiere mantenerse y se movió 1 kg (80 → 81): "Va bien". IMC en Sobrepeso. |
+| Diego Pereira | Activo. Quiere mantenerse y se movió 1 kg (80 → 81): "Va bien". Tiene un IMC manual de 24.80 (Normal); el calculado da Sobrepeso. |
 | Lucia Rodriguez | Por vencer (2 días). Bajó de 95 a 91 kg: "Va bien". IMC en Obesidad. |
 | Valentina Diaz | Vencida. Quiere mantenerse pero subió 4 kg (48 → 52): "No va bien". IMC en Bajo peso. |
 | Javier Gomez | Plan de 3 días/semana y ya entró 3 veces en los últimos 7 días: el check-in dice "Ya usó sus 3 días de los últimos 7". |
@@ -169,6 +169,7 @@ Si ya tenías la base creada y no quieres perder los datos, en vez de reimportar
 | `migraciones/005_cancelar_congelar.sql` | Agrega la fecha de cancelación y la tabla de congelamientos. Se puede repetir sin problema. |
 | `migraciones/006_rutina_por_dia.sql` | Agrega los ejercicios por día y lo que hizo cada socio. Las entradas anteriores quedan sin rutina. Se puede repetir sin problema. |
 | `migraciones/007_usuarios.sql` | Agrega los usuarios, con los dos de ejemplo. Se puede repetir sin problema. |
+| `migraciones/008_imc_manual.sql` | Agrega `socios.imc_manual`, vacío para todos los socios. Se puede repetir sin problema. |
 
 ## Dashboard (T6)
 
@@ -183,6 +184,17 @@ El enlace **Dashboard** de la página principal abre `dashboard.html`. Lo ven el
 Para la presentación: con los datos de ejemplo hay 4 activos, 2 por vencer, 2 vencidos, 1 congelado (Martin) y 1 cancelado (Paula), y Luis Fernandez aparece en riesgo. Como las fechas de ejemplo son relativas al día de importación, los ingresos del mes dependen de la fecha: renueva a cualquier socio y recarga el dashboard para ver subir los ingresos y cambiar el plan más vendido. Congela a Luis y desaparece de la lista de riesgo.
 
 Evidencia T6: 11 pruebas sin base en `tests/test_reglas.py` (regla 10 en sus límites, empate del plan más vendido, mes sin ventas y la ruta completa con datos simulados) y 4 de integración en `tests/test_dashboard.py` sobre MariaDB 11.4.5 aislado (puerto 3310): entradas de hace 13 y 14 días, socio que nunca entró, congelado, cancelado, ingresos del mes y pago del mes anterior, y acceso de recepción. También se comprobó la pantalla en la app real con login `recepcion`.
+
+## IMC manual (T9)
+
+- `socios.imc_manual DECIMAL(4,2) NULL`. Si tiene valor, reemplaza al IMC calculado: la categoría sale de ese número (`elegir_imc` y `categoria_imc`, regla 4) y la ficha lo muestra como "- manual".
+- Solo el administrador lo guarda (`PUT /api/socios/<id>/imc`, de 10 a 70) o vuelve al calculado (`DELETE /api/socios/<id>/imc`, botón **Volver al IMC calculado**). Recepción recibe 403 y no ve esos controles.
+- Registrar un peso nuevo lo borra en la misma transacción que el peso. Editar el socio lo borra solo si cambia la altura (comparada con 2 decimales, como la guarda la base).
+- Para una base existente, importa `migraciones/008_imc_manual.sql`.
+
+Para la presentación, inicia sesión como `admin` y abre la ficha de Diego Pereira: muestra 24.8 (Normal) - manual. **Volver al IMC calculado** muestra 25.56 (Sobrepeso). Guarda 24.8 otra vez y registra un peso: vuelve al calculado. Con `recepcion` no aparecen los controles y la API responde 403.
+
+Evidencia T9: 3 pruebas sin base en `tests/test_reglas.py` (manual contra calculado y límites 10/70) más las rutas de admin en `TestPermisos`, y 6 de integración en `tests/test_imc_manual.py`: guardar, fuera de rango, 403 de recepción, peso nuevo, cambio de altura y volver al calculado. Las 77 pruebas pasan sobre MariaDB 11.4.5 (puerto 3310) y MySQL 8.4.5 (puerto 3311), ambos aislados. `base_datos.sql` y las migraciones 004 y 008 (repetidas) se importaron en los dos motores con su cliente SQL. Se comprobó la ficha en la app real con los dos roles. No se usó el puerto 3306.
 
 ## Triggers y auditoría (T4)
 
@@ -205,7 +217,7 @@ Pruebas de integración reproducibles, sin dependencias nuevas: prepara una base
 
 ```powershell
 $env:GIMNASIO_TEST_PORT = "3309"
-python -m unittest tests.test_reglas tests.test_triggers tests.test_busqueda tests.test_dashboard -v
+python -m unittest tests.test_reglas tests.test_triggers tests.test_busqueda tests.test_dashboard tests.test_imc_manual -v
 ```
 
 `tests/test_triggers.py` no importa `base_datos.sql` ni borra la base; rechaza el puerto 3306, inicia sesión con `admin` y crea/elimina sus propios socios. Sin la variable, las 7 pruebas de integración se omiten. La prueba de repetición reemplaza los triggers, así que requiere una instancia exclusiva y permiso `TRIGGER`.
@@ -228,12 +240,14 @@ Toda ruta pide sesión, salvo el login. Las marcadas con (admin) son solo para e
 | PUT | `/api/planes/<id>` | Cambiar el precio de un plan (admin) |
 | GET | `/api/socios` | Busca por `?q=texto&estado=Vencido` (opcionales y combinables). Sin estado, oculta cancelados; con `estado=Cancelado`, muestra solo cancelados |
 | POST | `/api/socios` | Alta de socio |
-| GET | `/api/socios/<id>` | Ficha completa (IMC, rutina, progreso, historial, pagos, auditoría) |
+| GET | `/api/socios/<id>` | Ficha completa (IMC, indicando si es manual, rutina, progreso, historial, pagos, auditoría) |
 | PUT | `/api/socios/<id>` | Editar nombre, CI, teléfono, altura, objetivo y nivel |
 | DELETE | `/api/socios/<id>` | Eliminar socio y sus historiales, incluida la auditoría, en una transacción (admin) |
 | POST | `/api/socios/<id>/checkin` | Registrar una entrada |
 | POST | `/api/socios/<id>/renovar` | Renovar o cambiar de plan, registrando el pago |
-| POST | `/api/socios/<id>/peso` | Registrar un peso nuevo |
+| POST | `/api/socios/<id>/peso` | Registrar un peso nuevo (borra el IMC manual) |
+| PUT | `/api/socios/<id>/imc` | Guardar un IMC manual de 10 a 70 (admin) |
+| DELETE | `/api/socios/<id>/imc` | Volver al IMC calculado (admin) |
 | POST | `/api/socios/<id>/cancelar` | Cancelar un socio |
 | POST | `/api/socios/<id>/congelar` | Congelar el plan unos días |
 | POST | `/api/socios/<id>/descongelar` | Terminar el congelamiento antes de tiempo |
