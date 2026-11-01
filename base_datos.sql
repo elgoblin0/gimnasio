@@ -55,11 +55,15 @@ CREATE TABLE socios (
 -- ---------------------------------------------
 -- ASISTENCIAS
 -- Una fila por cada vez que un socio entra al gimnasio
+-- fecha: se calcula sola a partir de fecha_hora
+-- El UNIQUE impide dos entradas del mismo socio el mismo día
 -- ---------------------------------------------
 CREATE TABLE asistencias (
     id INT AUTO_INCREMENT PRIMARY KEY,
     socio_id INT NOT NULL,
     fecha_hora DATETIME NOT NULL,
+    fecha DATE GENERATED ALWAYS AS (DATE(fecha_hora)) STORED,
+    UNIQUE KEY una_entrada_por_dia (socio_id, fecha),
     FOREIGN KEY (socio_id) REFERENCES socios(id)
 );
 

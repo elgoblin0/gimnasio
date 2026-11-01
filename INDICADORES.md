@@ -6,27 +6,27 @@ Guía para la presentación oral. Cada indicador de la rúbrica apunta al archiv
 
 | Indicador | Evidencia |
 |---|---|
-| Implementación | `base_datos.sql`: 5 tablas (`planes`, `rutinas`, `socios`, `asistencias`, `registros_peso`) con claves foráneas (líneas 52, 63, 75) y datos de ejemplo. `migraciones/001_dni_a_ci.sql` renombra una columna sin perder datos. |
-| C.R.U.D. | **C**reate: alta de socio (`app.py:182`), check-in (`app.py:326`), nuevo peso (`app.py:382`). **R**ead: lista y ficha (`app.py:168`, `app.py:261`). **U**pdate: editar datos del socio (`app.py:235`, formulario "Editar datos" en `socio.html`), renovar plan y actualizar peso. **D**elete: eliminar socio (`app.py:222`). |
-| Conexión desde Python | `conectar()` en `app.py:21` con `mysql.connector`. Las funciones `consultar`, `consultar_uno` y `ejecutar` (`app.py:32-58`), y `socio_existe` y `validar_datos_socio` evitan repetir código (`app.py:66-80`) usan consultas parametrizadas (`%s`). |
+| Implementación | `base_datos.sql`: 5 tablas (`planes`, `rutinas`, `socios`, `asistencias`, `registros_peso`) con claves foráneas (líneas 52, 67, 79), un `UNIQUE` que impide dos entradas el mismo día (línea 66) y datos de ejemplo. `migraciones/` actualiza una base existente sin recrearla. |
+| C.R.U.D. | **C**reate: alta de socio (`app.py:272`), check-in (`app.py:426`), nuevo peso (`app.py:490`). **R**ead: lista y ficha (`app.py:258`, `app.py:361`). **U**pdate: editar datos del socio (`app.py:331`, formulario "Editar datos" en `socio.html`), renovar plan y actualizar peso. **D**elete: eliminar socio (`app.py:317`). |
+| Conexión desde Python | `conectar()` en `app.py:33` con `mysql.connector`. Las funciones `consultar`, `consultar_uno` y `ejecutar` (`app.py:44-70`) evitan repetir código y usan consultas parametrizadas (`%s`). `transaccion()` (`app.py:74`) confirma o deshace varias escrituras juntas. |
 
 ## Python (10 pts)
 
 | Indicador | Evidencia |
 |---|---|
 | Manejo de rutas | 10 rutas Flask con `@app.route`: `/`, `/api/planes`, `/api/socios`, `/api/socios/<int:socio_id>` y sus sub-rutas. Usan métodos GET, POST, PUT y DELETE. |
-| Conexión con el cliente | Flask sirve `static/` desde la raíz (`app.py:14`) y expone la API JSON que consume `fetch` en `app.js:13`. |
-| Paso de información con el cliente | Entrada: `request.get_json()` (`app.py:168`). Salida: `jsonify(...)`. Los errores usan `error()` con código HTTP (`app.py:61`). Los parámetros de URL (`<int:socio_id>`) también pasan datos. |
-| Lógica (iteradores y condicionales) | Bucle `for` que valida campos obligatorios (`app.py:73`, dentro de `validar_datos_socio`). Bucle `for` que calcula el estado de cada socio (`app.py:175`). Condicionales en las reglas: `calcular_estado`, `calcular_imc` y `calcular_progreso` (`app.py:96-135`) y en el check-in (`app.py:337-352`). |
-| Funciona sin errores | Validaciones antes de operar (peso, altura, CI duplicado, plan inexistente). Al borrar, primero se eliminan asistencias y pesos, y después el socio. |
+| Conexión con el cliente | Flask sirve `static/` desde la raíz (`app.py:17`) y expone la API JSON que consume `fetch` en `app.js:13`. |
+| Paso de información con el cliente | Entrada: `request.get_json()` dentro de `leer_json()` (`app.py:98`). Salida: `jsonify(...)`. Los errores usan `error()` con código HTTP (`app.py:89`). Los parámetros de URL (`<int:socio_id>`) también pasan datos. |
+| Lógica (iteradores y condicionales) | Bucle `for` que valida campos obligatorios (`app.py:138`, dentro de `validar_datos_socio`). Bucle `for` que calcula el estado de cada socio (`app.py:265`). Condicionales en las reglas: `calcular_estado`, `calcular_imc` y `calcular_progreso` (`app.py:186-224`) y en el check-in (`app.py:437-452`). |
+| Funciona sin errores | Validaciones antes de operar (`validar_datos_socio`, `app.py:137`): números, valores permitidos, largo de los textos, CI duplicado y plan inexistente, siempre con un error 400 y un mensaje claro. Alta, eliminación y registro de peso se guardan en una transacción. Las reglas tienen pruebas en `tests/test_reglas.py`. |
 
 ## JavaScript (5 pts)
 
 | Indicador | Evidencia |
 |---|---|
-| Lógica (iteradores y condicionales) | `for...of` para pintar la tabla de socios (`app.js:84`, con plantillas de texto), los planes (`app.js:63`) y el historial de peso (`app.js:238`). Condicionales en `mostrarMensaje`, en el color del progreso (`mostrarProgreso`, `app.js:214`) y en `confirm()` antes de eliminar (`app.js:110`). |
+| Lógica (iteradores y condicionales) | `for...of` para pintar la tabla de socios (`app.js:92`, con plantillas de texto), los planes (`app.js:71`) y el historial de peso (`app.js:252`). Condicionales en `mostrarMensaje`, en el color del progreso (`mostrarProgreso`, `app.js:228`) y en `confirm()` antes de eliminar (`app.js:118`). |
 | Funciona sin errores | Todas las llamadas pasan por `llamarApi` (`app.js:13`) y se muestra el mensaje o el error de la API (`mostrarResultado`, `app.js:38`). |
-| Recibe y procesa información | Lee el JSON de la API y lo transforma: `formatearFecha`, `etiquetaEstado`, el IMC con su categoría, el signo `+` en la diferencia de peso. Lee el `?id=` de la URL (`app.js:158`). `cargarFicha()` reparte los datos en funciones cortas (`mostrarDatos`, `mostrarPlan`, `mostrarSalud`, `mostrarProgreso`, `mostrarHistorial`). |
+| Recibe y procesa información | Lee el JSON de la API y lo transforma: `formatearFecha`, `etiquetaEstado`, el IMC con su categoría, el signo `+` en la diferencia de peso. Lee el `?id=` de la URL (`app.js:166`). `escaparHtml` (`app.js:48`) muestra como texto el HTML que venga en los datos. `cargarFicha()` reparte los datos en funciones cortas (`mostrarDatos`, `mostrarPlan`, `mostrarSalud`, `mostrarProgreso`, `mostrarHistorial`). |
 
 ## HTML (5 pts)
 
@@ -64,12 +64,11 @@ Dónde tocar según lo que pidan:
 
 | Si piden... | Se toca |
 |---|---|
-| Una regla nueva o distinta (por ejemplo, otros días de aviso de vencimiento) | La función de la regla en `app.py:86-135`. |
+| Una regla nueva o distinta (por ejemplo, otros días de aviso de vencimiento) | La función de la regla en `app.py:176-224`, y su prueba en `tests/test_reglas.py`. |
 | Un campo nuevo en el socio | Columna en `base_datos.sql`, `INSERT` y `SELECT` en `app.py`, formulario en `index.html`, dato en `app.js`. |
 | Un botón o acción nueva | Ruta en `app.py`, botón en el HTML y función en `app.js` con `llamarApi`. |
 | Un cambio visual | Clase nueva en `estilos.css` (por ejemplo, otro `:hover`). |
 
 ## Puntos débiles a tener en cuenta
 
-- **Seguridad en el frontend:** `app.js` arma el HTML con plantillas de texto y `innerHTML +=`, sin escapar los datos. Un nombre con `<script>` se inyectaría. En un proyecto de facultad es aceptable, pero conviene saber explicarlo.
-- **Duplicado en el check-in:** la consulta de "ya entró hoy" y la de "últimos 7 días" son dos SQL distintos. Es intencional, porque miden cosas diferentes.
+- **Duplicado en el check-in:** la consulta de "ya entró hoy" y la de "últimos 7 días" son dos SQL distintos. Es intencional, porque miden cosas diferentes. Además, el `UNIQUE` de `asistencias` frena dos entradas simultáneas, que la consulta sola no puede detectar.
