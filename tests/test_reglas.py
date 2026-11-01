@@ -7,6 +7,7 @@
 
 import unittest
 from datetime import date, timedelta
+from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
 import app as gimnasio
@@ -329,6 +330,107 @@ class TestBusqueda(unittest.TestCase):  # T2: sesión simulada, sin MySQL
                 self.assertEqual(len(respuesta.get_json()), 4)
                 self.assertEqual(consulta.call_args.args[1], ())
                 self.assertNotIn("LIKE", consulta.call_args.args[0])
+
+
+class TestRiesgo(unittest.TestCase):  # REGLA 10
+    def test_cuenta_desde_la_ultima_entrada(self):
+        self.assertEqual(gimnasio.calcular_dias_sin_entrar(dias_desde_hoy(-14), dias_desde_hoy(-60)), 14)
+
+    def test_sin_entradas_cuenta_desde_el_primer_pago(self):
+        self.assertEqual(gimnasio.calcular_dias_sin_entrar(None, dias_desde_hoy(-3)), 3)
+
+    def test_sin_entradas_ni_pagos(self):
+        self.assertIsNone(gimnasio.calcular_dias_sin_entrar(None, None))
+
+    def test_limite_de_14_dias(self):
+        self.assertFalse(gimnasio.esta_en_riesgo("Activo", 13))
+        self.assertTrue(gimnasio.esta_en_riesgo("Activo", 14))
+        self.assertTrue(gimnasio.esta_en_riesgo("Por vencer", 30))
+
+    def test_sin_datos_esta_en_riesgo(self):
+        self.assertTrue(gimnasio.esta_en_riesgo("Activo", None))
+
+    def test_solo_planes_en_uso(self):
+        for estado in ["Congelado", "Vencido", "Cancelado"]:
+            with self.subTest(estado=estado):
+                self.assertFalse(gimnasio.esta_en_riesgo(estado, 100))
+                self.assertFalse(gimnasio.esta_en_riesgo(estado, None))
+
+
+class TestPlanMasVendido(unittest.TestCase):  # T6
+    def test_gana_el_de_mas_ventas(self):
+        self.assertEqual(gimnasio.elegir_plan_mas_vendido({"Mensual": 2, "Anual": 5}), "Anual")
+
+    def test_empate_por_orden_alfabetico(self):
+        self.assertEqual(
+            gimnasio.elegir_plan_mas_vendido({"Trimestral": 3, "Mensual": 3, "Anual": 1}), "Mensual"
+        )
+
+    def test_sin_ventas(self):
+        self.assertIsNone(gimnasio.elegir_plan_mas_vendido({}))
+
+
+class TestDashboard(unittest.TestCase):  # T6: sesión y consultas simuladas, sin MySQL
+    def setUp(self):
+        self.cliente = gimnasio.app.test_client()
+        with self.cliente.session_transaction() as sesion:
+            sesion["usuario_id"] = 2
+        recepcion = {"id": 2, "nombre": "Recepción", "usuario": "recepcion", "rol": "recepcion"}
+        simulacion = patch.object(gimnasio, "consultar_uno", return_value=recepcion)
+        simulacion.start()
+        self.addCleanup(simulacion.stop)
+
+    def socio(self, id, dias, ultima=None, pago=None, cancelacion=None, congelado=False):
+        return {
+            "id": id, "nombre": "Socio " + str(id), "ci": str(id), "plan": "Mensual",
+            "fecha_vencimiento": dias_desde_hoy(dias), "fecha_cancelacion": cancelacion,
+            "congelado": congelado, "ultima_entrada": ultima, "primer_pago": pago,
+        }
+
+    def test_totales_listas_riesgo_e_ingresos(self):
+        socios = [
+            self.socio(1, 20, ultima=dias_desde_hoy(-2)),
+            self.socio(2, 20, ultima=dias_desde_hoy(-14)),
+            self.socio(3, 5, pago=dias_desde_hoy(-20)),
+            self.socio(4, -1, ultima=dias_desde_hoy(-40)),
+            self.socio(5, 20, congelado=True, ultima=dias_desde_hoy(-40)),
+            self.socio(6, 20, cancelacion=date.today()),
+            self.socio(7, 20),
+        ]
+        ventas = [
+            {"nombre": "Trimestral", "cantidad": 2, "total": Decimal("240.00")},
+            {"nombre": "Mensual", "cantidad": 2, "total": Decimal("90.50")},
+        ]
+        with patch.object(gimnasio, "consultar", side_effect=[socios, ventas]):
+            respuesta = self.cliente.get("/api/dashboard")
+        self.assertEqual(respuesta.status_code, 200)
+        datos = respuesta.get_json()
+        self.assertEqual(datos["totales"], [
+            {"estado": "Activo", "cantidad": 3}, {"estado": "Por vencer", "cantidad": 1},
+            {"estado": "Vencido", "cantidad": 1}, {"estado": "Congelado", "cantidad": 1},
+            {"estado": "Cancelado", "cantidad": 1},
+        ])
+        self.assertEqual(datos["ingresos_mes"], 330.5)
+        self.assertEqual(datos["plan_mas_vendido"], "Mensual")
+        self.assertEqual(datos["ventas_plan_mas_vendido"], 2)
+        self.assertEqual(
+            [(lista["estado"], [s["id"] for s in lista["socios"]]) for lista in datos["listas"]],
+            [("Vencido", [4]), ("Por vencer", [3]), ("Congelado", [5]), ("Cancelado", [6])],
+        )
+        self.assertEqual(
+            [(s["id"], s["dias_sin_entrar"]) for s in datos["en_riesgo"]], [(2, 14), (3, 20), (7, None)]
+        )
+
+    def test_mes_sin_ventas(self):
+        with patch.object(gimnasio, "consultar", side_effect=[[], []]) as consulta:
+            datos = self.cliente.get("/api/dashboard").get_json()
+        self.assertEqual(datos["ingresos_mes"], 0)
+        self.assertIsNone(datos["plan_mas_vendido"])
+        # El mes calendario se pasa como parámetros: del día 1 al día 1 del mes siguiente
+        inicio, fin = consulta.call_args.args[1]
+        self.assertEqual(inicio, date.today().replace(day=1))
+        self.assertEqual(fin.day, 1)
+        self.assertEqual((fin - timedelta(days=1)).month, inicio.month)
 
 
 class TestPermisos(unittest.TestCase):  # REGLA 15

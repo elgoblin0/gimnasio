@@ -93,6 +93,7 @@ gimnasio/
     ├── login.html     ← entrada al sistema
     ├── index.html     ← búsqueda de socios, check-in, alta y precios
     ├── socio.html     ← ficha: IMC, rutina, progreso, pagos, auditoría, renovar
+    ├── dashboard.html ← totales, listas por estado y socios en riesgo
     ├── usuarios.html  ← listado y alta de usuarios (solo administrador)
     ├── app.js         ← llamadas a la API (fetch)
     └── estilos.css
@@ -129,6 +130,7 @@ Las reglas están en `app.py`. Los dos triggers de T4 están en `base_datos.sql`
 | 7 | Días extra: quien paga antes de vencer recibe los días del plan más los que le quedaban (5 restantes + plan de 30 = vence en 35 días). Cada pago registra ese desglose. |
 | 8 | Cancelar: conserva el historial y oculta al socio de la lista. Si renueva, vuelve con el plan contado desde hoy, sin los días que le quedaban. |
 | 9 | Congelar: de 1 a 30 días, una vez por período, solo con el plan en uso. Los días se suman al vencimiento de inmediato. Si vuelve antes, se restan los no usados. |
+| 10 | Socios en riesgo: Activos o Por vencer cuya última entrada fue hace 14 días o más. Si nunca entraron, se cuenta desde su primer pago; sin entradas ni pagos, también están en riesgo. Los congelados nunca lo están. |
 | 11 | Rutina en secuencia: cada check-in aceptado pasa al día siguiente de su rutina, y después del Día 3 vuelve al Día 1. Si cambia de rutina, empieza en el Día 1. |
 | 12 | Cumplimiento: ejercicios hechos / asignados en los últimos 28 días, solo con la rutina actual. |
 | 13 | Asistencia: entradas de los últimos 28 días / (días por semana × 4), con un máximo de 100%. Un plan libre cuenta como 3 días por semana. |
@@ -144,7 +146,7 @@ Las fechas de ejemplo se calculan a partir del día en que se importa el `.sql`,
 | Ana Lopez | Activa. El check-in funciona. Va bien bajando de peso (72 → 68 kg). En sus pagos se ve una renovación con 5 días restantes. Con 8 entradas y 100% de cumplimiento, se le sugiere subir de nivel. |
 | Carlos Ruiz | Por vencer (5 días). Plan de 3 días/semana y ya entró 2 veces: el primer check-in funciona, el segundo dice "Ya entró hoy". Hizo parte de su rutina: 67% de cumplimiento. |
 | Maria Gomez | Vencida. El check-in se rechaza. Al renovar, el plan cuenta desde hoy. |
-| Luis Fernandez | Activo (plan anual). Quiere bajar peso pero subió (88 → 90 kg): "No va bien". |
+| Luis Fernandez | Activo (plan anual). Quiere bajar peso pero subió (88 → 90 kg): "No va bien". Nunca entró y pagó hace 165 días: aparece en riesgo en el dashboard. |
 | Diego Pereira | Activo. Quiere mantenerse y se movió 1 kg (80 → 81): "Va bien". IMC en Sobrepeso. |
 | Lucia Rodriguez | Por vencer (2 días). Bajó de 95 a 91 kg: "Va bien". IMC en Obesidad. |
 | Valentina Diaz | Vencida. Quiere mantenerse pero subió 4 kg (48 → 52): "No va bien". IMC en Bajo peso. |
@@ -168,6 +170,20 @@ Si ya tenías la base creada y no quieres perder los datos, en vez de reimportar
 | `migraciones/006_rutina_por_dia.sql` | Agrega los ejercicios por día y lo que hizo cada socio. Las entradas anteriores quedan sin rutina. Se puede repetir sin problema. |
 | `migraciones/007_usuarios.sql` | Agrega los usuarios, con los dos de ejemplo. Se puede repetir sin problema. |
 
+## Dashboard (T6)
+
+El enlace **Dashboard** de la página principal abre `dashboard.html`. Lo ven el administrador y recepción.
+
+- **Socios por estado:** una tarjeta por estado, con la regla 2 (`estado_del_socio`), sin duplicarla en SQL.
+- **Este mes:** ingresos (suma de `pagos.monto`) y plan más vendido (más pagos) del mes calendario, del día 1 al último día. Si dos planes empatan, gana el primero por orden alfabético (`elegir_plan_mas_vendido`). Sin pagos en el mes muestra 0.00 y "Sin ventas".
+- **Socios en riesgo (regla 10):** `calcular_dias_sin_entrar` cuenta desde la última entrada o, si nunca entró, desde el primer pago; `esta_en_riesgo` exige estado Activo o Por vencer y 14 días o más (`DIAS_PARA_RIESGO`). Sin entradas ni pagos aparece como "Sin datos".
+- **Listas:** vencidos, por vencer, congelados y cancelados, cada uno con su botón **Ver ficha**.
+- Solo tarjetas y tablas con CSS: no usa librerías de gráficos. No cambia la base ni necesita migración.
+
+Para la presentación: con los datos de ejemplo hay 4 activos, 2 por vencer, 2 vencidos, 1 congelado (Martin) y 1 cancelado (Paula), y Luis Fernandez aparece en riesgo. Como las fechas de ejemplo son relativas al día de importación, los ingresos del mes dependen de la fecha: renueva a cualquier socio y recarga el dashboard para ver subir los ingresos y cambiar el plan más vendido. Congela a Luis y desaparece de la lista de riesgo.
+
+Evidencia T6: 11 pruebas sin base en `tests/test_reglas.py` (regla 10 en sus límites, empate del plan más vendido, mes sin ventas y la ruta completa con datos simulados) y 4 de integración en `tests/test_dashboard.py` sobre MariaDB 11.4.5 aislado (puerto 3310): entradas de hace 13 y 14 días, socio que nunca entró, congelado, cancelado, ingresos del mes y pago del mes anterior, y acceso de recepción. También se comprobó la pantalla en la app real con login `recepcion`.
+
 ## Triggers y auditoría (T4)
 
 - `copiar_peso_socio`, `AFTER INSERT ON registros_peso`: copia cada peso insertado a `socios.peso`, incluso si se inserta desde SQL. `registrar_peso` solo inserta el registro; el trigger participa en la misma transacción.
@@ -189,7 +205,7 @@ Pruebas de integración reproducibles, sin dependencias nuevas: prepara una base
 
 ```powershell
 $env:GIMNASIO_TEST_PORT = "3309"
-python -m unittest tests.test_reglas tests.test_triggers tests.test_busqueda -v
+python -m unittest tests.test_reglas tests.test_triggers tests.test_busqueda tests.test_dashboard -v
 ```
 
 `tests/test_triggers.py` no importa `base_datos.sql` ni borra la base; rechaza el puerto 3306, inicia sesión con `admin` y crea/elimina sus propios socios. Sin la variable, las 7 pruebas de integración se omiten. La prueba de repetición reemplaza los triggers, así que requiere una instancia exclusiva y permiso `TRIGGER`.
@@ -223,6 +239,7 @@ Toda ruta pide sesión, salvo el login. Las marcadas con (admin) son solo para e
 | POST | `/api/socios/<id>/descongelar` | Terminar el congelamiento antes de tiempo |
 | POST, DELETE | `/api/socios/<id>/asistencias/<id>/ejercicios/<id>` | Marcar o desmarcar un ejercicio de una entrada |
 | POST | `/api/socios/<id>/subir-nivel` | Confirmar la subida de nivel sugerida |
+| GET | `/api/dashboard` | Socios por estado, ingresos y plan más vendido del mes, listas por estado y socios en riesgo |
 
 ## Problemas frecuentes
 
