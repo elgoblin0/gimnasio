@@ -7,14 +7,14 @@ Conservar el proyecto de facultad sencillo de ejecutar y explicar. Mantener Flas
 - [x] Guardar el estado inicial con la etiqueta `base-original`.
 - [x] Separar la versión Pro en su propio repositorio, conservando el historial.
 
-## Próximas mejoras
-Las funciones pedidas por el profesor están definidas en `SPEC.md`, divididas en tickets.
+## Mejoras
+Las funciones pedidas por el profesor están definidas en `SPEC.md`, divididas en tickets. Los tickets T1 a T10 ya están fusionados en `main`.
 
-- [ ] Validar números, campos vacíos y valores permitidos; devolver errores comprensibles (T1).
-- [ ] Confirmar o cancelar juntas las escrituras de alta, eliminación y registro de peso (T1).
-- [ ] Revisar entradas simultáneas para evitar check-ins duplicados (T1).
-- [ ] Probar las reglas de vencimiento, renovación y asistencia en sus casos límite (T1).
-- [ ] Mejorar formularios, mensajes y presentación en celulares.
+- [x] Validar números, campos vacíos y valores permitidos; devolver errores comprensibles (T1).
+- [x] Confirmar o cancelar juntas las escrituras de alta, eliminación y registro de peso (T1).
+- [x] Revisar entradas simultáneas para evitar check-ins duplicados (T1).
+- [x] Probar las reglas de vencimiento, renovación y asistencia en sus casos límite (T1).
+- [x] Mejorar formularios, mensajes y presentación en celulares (rediseño Hierro, PR #23).
 
 ## Límites
 No incorporar cobros reales, IA, múltiples sedes ni una reescritura del stack en esta versión. Registrar pagos sí está permitido (ver `SPEC.md`). Se mantiene el acuerdo del grupo indicado en el README antes de cambiar código.
