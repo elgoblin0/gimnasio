@@ -1132,10 +1132,12 @@ def crear_usuario():
     if datos.get("rol") not in ROLES:
         return error("El rol no es válido")
 
+    # pbkdf2 funciona en cualquier Python; scrypt (el de por defecto) no existe en el Python que trae la Mac
+    clave_hash = generate_password_hash(clave, method="pbkdf2:sha256")
     try:
         ejecutar(
             "INSERT INTO usuarios (nombre, usuario, clave_hash, rol) VALUES (%s, %s, %s, %s)",
-            (datos["nombre"], datos["usuario"], generate_password_hash(clave), datos["rol"]),
+            (datos["nombre"], datos["usuario"], clave_hash, datos["rol"]),
         )
     except mysql.connector.IntegrityError:
         return error("Ya existe un usuario con ese nombre de usuario")

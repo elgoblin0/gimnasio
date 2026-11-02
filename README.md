@@ -172,6 +172,7 @@ Si ya tenías la base creada y no quieres perder los datos, en vez de reimportar
 | `migraciones/007_usuarios.sql` | Agrega los usuarios, con los dos de ejemplo. Se puede repetir sin problema. |
 | `migraciones/008_imc_manual.sql` | Agrega `socios.imc_manual`, vacío para todos los socios. Se puede repetir sin problema. |
 | `migraciones/009_salida.sql` | Agrega `asistencias.fecha_hora_salida` (T10). Las entradas viejas quedan sin salida y no cuentan como adentro. Se puede repetir sin problema. |
+| `migraciones/010_claves_pbkdf2.sql` | Cambia las claves de ejemplo de `admin` y `recepcion` de scrypt a pbkdf2, para que el login funcione con el Python que trae la Mac. Solo si todavía tienen la clave original. Se puede repetir sin problema. |
 
 ## Dashboard (T6)
 
